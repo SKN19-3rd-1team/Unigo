@@ -1,0 +1,9 @@
+langchain
+langgraph
+pandas
+pyarrow
+fastapi
+uvicorn
+python-dotenv
+pinecone-client
+langchain-pinecone

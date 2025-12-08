@@ -1,0 +1,327 @@
+/* 전체 배경 */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+}
+
+.page-wrapper {
+    width: 100%;
+    height: 100%;
+    min-height: 1080px;
+    position: relative;
+}
+
+/* ----------------------
+    상단 네비바
+---------------------- */
+.top-nav {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 50px;
+}
+
+.nav-inner {
+    width: 1820px;
+    height: 100px;
+    background: #43334C;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 50px;
+}
+
+.nav-brand {
+    font-size: 36px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 50px;
+}
+
+.nav-link {
+    color: white;
+    font-size: 36px;
+    text-decoration: none;
+}
+
+/* ----------------------
+    메인 영역
+---------------------- */
+.main-area {
+    display: flex;
+    justify-content: center;
+    margin-top: 60px;
+}
+
+.card-container {
+    width: 1820px;
+    height: 820px;
+    background: #F8F4EC;
+    border-radius: 30px;
+    border: 1px solid #FFF7F3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 카드 내부 */
+.card {
+    width: 880px;
+    text-align: center;
+    position: relative;
+}
+
+.title {
+    font-size: 48px;
+    color: #583A36;
+    font-family: 'Inria Serif', serif;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 24px;
+    color: #583A36;
+    font-family: 'Inria Serif', serif;
+    margin-bottom: 40px;
+}
+
+/* 이미지 */
+.hero-img {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+    margin-bottom: 50px;
+}
+
+/* ----------------------
+    버튼 영역
+---------------------- */
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.btn-primary {
+    width: 250px;
+    height: 80px;
+    background: #43334C;
+    border-radius: 20px;
+    border: none;
+    color: white;
+    font-size: 32px;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+}
+
+.btn-outline {
+    width: 250px;
+    height: 80px;
+    background: transparent;
+    border-radius: 20px;
+    color: #43334C;
+    border: 2px solid #43334C;
+    font-size: 32px;
+    font-family: 'Roboto', sans-serif;
+    box-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    cursor: pointer;
+}
+
+/* ------------------------
+    로그인/회원가입 팝업 렌더링
+------------------------ */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 360px;
+}
+
+/* ----------------------
+    로그인/회원가입 팝업 영역
+---------------------- */
+/* 기본 레이아웃 초기화 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+/* 모달 배경 */
+.popup-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.popup-modal.show {
+    display: flex;
+}
+
+.popup-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+}
+
+/* 모달 컨테이너 */
+.popup-modal-content {
+    position: relative;
+    width: 90%;
+    height: 90%;
+    max-width: 500px;
+    max-height: 600px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 30px;
+    z-index: 10;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* 닫기 버튼 */
+.popup-modal-close {
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    border: none;
+    background: none;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+/* 제목 */
+.popup-modal-title {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+/* 폼 */
+.popup-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.popup-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.popup-label {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.popup-input {
+    height: 42px;
+    padding: 10px 14px;
+    border: 1.4px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* 이메일 텍스트필드 & 버튼 가로 배치 */
+.popup-email-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+/* 버튼 */
+.popup-btn-primary {
+    margin-top: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    background: #43334C;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* 버튼2 */
+.popup-btn-primary2 {
+    width: 100%;
+    padding: 12px 14px;
+    background: #999999;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* 인증 버튼 */
+.popup-auth-btn-primary {
+    height: 42px; 
+    width: 20%;
+    padding: 0px 14px;
+    background: #43334C;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-top: 0; 
+}
+
+/* 하단 */
+.login-modal-footer {
+    margin-top: 18px;
+    text-align: center;
+}
+
+.login-forgot-link {
+    font-size: 16px;
+    color: #FF0A0A;
+    text-decoration: none;
+}
+
+.login-signup-row {
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+.login-signup-row a {
+    color: #FF0A0A;
+    text-decoration: none;
+}

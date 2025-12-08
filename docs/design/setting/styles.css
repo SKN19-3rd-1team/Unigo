@@ -1,0 +1,245 @@
+/* 전체 배경 */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+}
+
+.page-wrapper {
+    width: 100%;
+    height: 100%;
+    min-height: 1080px;
+    position: relative;
+}
+
+/* ----------------------
+    상단 네비바
+---------------------- */
+.top-nav {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 50px;
+}
+
+.nav-inner {
+    width: 1820px;
+    height: 100px;
+    background: #43334C;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 50px;
+}
+
+.nav-brand {
+    font-size: 36px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 50px;
+}
+
+.nav-link {
+    color: white;
+    font-size: 36px;
+    text-decoration: none;
+}
+
+/* ----------------------
+    좌측 사이드 영역
+---------------------- */
+/* 기본 레이아웃 초기화 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+/* 전체 컨테이너 */
+.main-area {
+    display: flex;
+    justify-content: center;
+    margin-top: 60px;
+}
+
+/* 좌측 사이드 영역 */
+.sidebar {
+    width: 420px;
+    height: 1239px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;   /* 가로 중앙 */
+    position: relative;
+}
+
+/* ----------------------
+    유저 정보 영역
+---------------------- */
+/* 유저 정보 전체 박스 */
+.sidebar-user-box {
+    width: 100%;
+    border-radius: 45px;
+    background: #F4F4F4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 80px;      /* 위쪽 여백 */
+    padding-bottom: 80px;    /* 아래쪽 여백 */
+    gap: 18px;
+    
+}
+
+/* 프로필 이미지 */
+.sidebar-avatar {
+    width: 200px;
+    height: 200px;
+    background: white;
+    border-radius: 100px;
+    overflow: hidden;
+}
+
+/* 유저 이름 */
+.sidebar-username {
+    color: #444444;
+    margin-top: 30px;
+    font-size: 32px;
+    font-weight: 600;
+}
+
+/* 유저 이메일 */
+.sidebar-email {
+    color: black;
+    font-size: 24px;
+    font-weight: 400;
+}
+
+/* ----------------------
+    메뉴 버튼 영역
+---------------------- */
+/* 메뉴 전체 묶음 */
+.sidebar-menu-box {
+    width: 100%;
+    border-radius: 45px;
+    margin-top: 60px;
+    background: #F4F4F4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 30px;    /* 위쪽 여백 */
+    padding-bottom: 30px;    /* 아래쪽 여백 */
+    gap: 15px;
+}
+
+/* 버튼 */
+.sidebar-btn {
+    width: 325px;
+    height: 70px;
+    border-radius: 10px;
+    font-size: 32px;
+    font-weight: 400;
+    font-family: Roboto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.sidebar-btn.active {
+    background: #8C8C8C;
+    color: black;
+}
+
+.sidebar-btn.inactive {
+    background: white;
+    color: black;
+}
+
+/* ----------------------
+    우측 설정 영역
+---------------------- */
+/* 우측 설정 패널 */
+.setting-panel {
+    width: 1382px;
+    height: 1239px;
+    background: #F4F4F4;
+    border-radius: 45px;
+    margin-left: 40px;
+    padding: 45px;
+}
+
+.setting-inner {
+    width: 100%;
+    height: 100%;
+    background: none;
+}
+
+.setting-title {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.setting-desc {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 40px;
+}
+
+.setting-section-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    margin-top: 40px;
+}
+
+/* 입력 필드 */
+.setting-input-wrapper {
+    width: 850px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.setting-input {
+    width: 670px;
+    height: 70px;
+    border-radius: 10px;
+    border: 1px solid #999999;
+    padding: 0 12px;
+    font-size: 20px;
+    font-family: Poppins;
+}
+
+/* 버튼 */
+.setting-btn {
+    width: 170px;
+    height: 70px;
+    background: #43334C;
+    color: white;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.setting-submit {
+    margin-top: 30px;
+    width: 850px;
+    height: 70px;
+    background: #43334C;
+    border-radius: 30px;
+    color: white;
+    font-size: 26px;
+    font-weight: 600;
+    cursor: pointer;
+}
