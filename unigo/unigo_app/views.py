@@ -9,6 +9,9 @@ import json
 import sys
 import os
 import uuid
+import logging
+
+logger = logging.getLogger('unigo_app')
 
 # Models
 from .models import Conversation, Message, MajorRecommendation
@@ -23,7 +26,7 @@ try:
     from backend.main import run_mentor, run_major_recommendation
 except ImportError as e:
     # ... (Error handling code kept brief for this tool call, assumed user already saw it) ...
-    print(f"Backend import failed: {e}")
+    logger.error(f"Backend import failed: {e}")
     # In production, this should probably not pass silently, but for now we proceed
     pass
 
@@ -165,6 +168,7 @@ def chat_api(request):
     """
     챗봇 대화 API (DB 저장 포함)
     """
+    logger.info("Chat API called")
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -176,6 +180,8 @@ def chat_api(request):
         
         if not message_text:
             return JsonResponse({"error": "Empty message"}, status=400)
+
+        logger.debug(f"User message: {message_text}")
 
         # 1. 대화 세션 찾기 또는 생성
         conversation = None
@@ -222,7 +228,7 @@ def chat_api(request):
             )
         except Exception as e:
             # AI 호출 실패 시 로그 남기고 에러 반환
-            print(f"AI Error: {e}")
+            logger.error(f"AI Error: {e}")
             return JsonResponse({"error": "AI Server Error"}, status=503)
 
         ai_response_text = str(response_content)
@@ -236,6 +242,8 @@ def chat_api(request):
             content=ai_response_text
         )
 
+        logger.info("Response generated successfully")
+
         return JsonResponse({
             "response": ai_response_text,
             "session_id": conversation.session_id if not request.user.is_authenticated else None,
@@ -243,7 +251,7 @@ def chat_api(request):
         })
         
     except Exception as e:
-        print(f"Error in chat_api: {e}")
+        logger.error(f"Error in chat_api: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
@@ -284,6 +292,6 @@ def onboarding_api(request):
         return JsonResponse(result)
         
     except Exception as e:
-        print(f"Error in onboarding_api: {e}")
+        logger.error(f"Error in onboarding_api: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
