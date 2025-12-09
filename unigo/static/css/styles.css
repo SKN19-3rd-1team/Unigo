@@ -1,5 +1,6 @@
 /* 전체 배경 */
-body, html {
+body,
+html {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -133,7 +134,7 @@ body, html {
     border: 2px solid #43334C;
     font-size: 32px;
     font-family: 'Roboto', sans-serif;
-    box-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
     cursor: pointer;
 }
 
@@ -144,7 +145,7 @@ body, html {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     justify-content: center;
     align-items: center;
     z-index: 999;
@@ -291,7 +292,7 @@ body, html {
 
 /* 인증 버튼 */
 .popup-auth-btn-primary {
-    height: 42px; 
+    height: 42px;
     width: 20%;
     padding: 0px 14px;
     background: #43334C;
@@ -301,7 +302,7 @@ body, html {
     font-size: 18px;
     cursor: pointer;
     font-weight: 600;
-    margin-top: 0; 
+    margin-top: 0;
 }
 
 /* 하단 */
@@ -324,4 +325,196 @@ body, html {
 .login-signup-row a {
     color: #FF0A0A;
     text-decoration: none;
+}
+
+/* ----------------------
+    Setting Page Specific Styles
+---------------------- */
+.setting-container {
+    display: flex;
+    max-width: 1200px;
+    margin: 40px auto;
+    gap: 40px;
+    padding: 0 20px;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.sidebar-user-box {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.sidebar-avatar {
+    width: 100px;
+    height: 100px;
+    background-color: #ddd;
+    border-radius: 50%;
+    margin: 0 auto 15px;
+    /* Placeholder for avatar image */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23999"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+    background-size: cover;
+}
+
+.sidebar-username {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.sidebar-email {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.sidebar-menu-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.sidebar-btn.active {
+    background-color: #f0f0f0;
+    color: #333;
+    font-weight: bold;
+    color: #43334C;
+    /* Active color matched with theme */
+}
+
+.sidebar-btn:hover:not(.active) {
+    background-color: #fafafa;
+}
+
+/* Panel */
+.setting-panel {
+    flex-grow: 1;
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.setting-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.setting-desc {
+    color: #666;
+    margin-bottom: 40px;
+}
+
+/* Tabs */
+.setting-tabs {
+    display: flex;
+    gap: 20px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 30px;
+}
+
+.tab-btn {
+    padding: 15px 5px;
+    cursor: pointer;
+    color: #888;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    color: #43334C;
+    border-bottom-color: #43334C;
+    font-weight: bold;
+}
+
+/* Forms */
+.tab-content {
+    display: none;
+    max-width: 600px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.input-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.input-row {
+    display: flex;
+    gap: 10px;
+}
+
+.form-input {
+    flex-grow: 1;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #43334C;
+}
+
+.btn-secondary {
+    padding: 0 20px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.setting-btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: #43334C;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.setting-btn-primary:hover {
+    background: #2E2235;
+}
+
+.error-msg {
+    color: #ff3b30;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: none;
+}
+
+.success-msg {
+    color: #34c759;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: none;
 }

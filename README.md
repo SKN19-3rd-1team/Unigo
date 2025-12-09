@@ -57,6 +57,8 @@ frontend/
 ├── assets/                        # 공통 자산
 │   └── rabbit.png                # 마스코트 이미지 (원본)
 │
+├── scripts/                       # 유틸리티 스크립트
+│   └── migrate_to_mysql.py       # 데이터 마이그레이션
 ├── .env                           # 환경 변수 (OPENAI_API_KEY 등)
 ├── .gitignore                     # Git 제외 파일
 ├── requirements.txt               # Python 의존성

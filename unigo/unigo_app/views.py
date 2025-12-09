@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.utils import timezone
@@ -10,6 +10,7 @@ import sys
 import os
 import uuid
 import logging
+from django.contrib.auth.decorators import login_required
 
 logger = logging.getLogger("unigo_app")
 
@@ -52,6 +53,8 @@ def chat(request):
 
 def setting(request):
     """설정 페이지 렌더링"""
+    if not request.user.is_authenticated:
+        return redirect("unigo_app:auth")
     return render(request, "unigo_app/setting.html")
 
 
@@ -182,6 +185,107 @@ def auth_me(request):
             }
         )
     return JsonResponse({"is_authenticated": False})
+
+
+# ============================================
+# Setting API
+# ============================================
+
+
+@csrf_exempt
+@login_required
+def check_username(request):
+    """닉네임 중복 확인 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": "Username required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse(
+                {"exists": True, "message": "이미 사용 중인 닉네임입니다."}
+            )
+
+        return JsonResponse({"exists": False, "message": "사용 가능한 닉네임입니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_nickname(request):
+    """닉네임 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        new_username = data.get("username")
+        password = data.get("password")
+
+        if not new_username or not password:
+            return JsonResponse({"error": "Username and password required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(request, username=request.user.username, password=password)
+        if user is None:
+            return JsonResponse({"error": "비밀번호가 일치하지 않습니다."}, status=400)
+
+        # 중복 확인
+        if User.objects.filter(username=new_username).exists():
+            return JsonResponse({"error": "이미 사용 중인 닉네임입니다."}, status=400)
+
+        # 닉네임 변경
+        user.username = new_username
+        user.save()
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_password(request):
+    """비밀번호 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+
+        if not current_password or not new_password:
+            return JsonResponse({"error": "All fields required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(
+            request, username=request.user.username, password=current_password
+        )
+        if user is None:
+            return JsonResponse(
+                {"error": "현재 비밀번호가 일치하지 않습니다."}, status=400
+            )
+
+        # 비밀번호 변경
+        user.set_password(new_password)
+        user.save()
+
+        # 세션 유지
+        update_session_auth_hash(request, user)
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # ============================================
