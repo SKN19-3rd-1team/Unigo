@@ -35,8 +35,8 @@ cd unigo
 
 ```bash
 # Windows
-conda create -n langchain_env python=3.11
-conda activate langchain_env
+conda create -n unigo python=3.12
+conda activate unigo
 ```
 
 ### 3. 의존성 설치
@@ -113,7 +113,15 @@ pip install python-dotenv
 
 **참고**: `requirements.txt`에 이미 포함되어 있으므로, `pip install -r requirements.txt`를 실행했다면 별도 설치가 필요 없습니다.
 
-### 5. Django 데이터베이스 마이그레이션
+### 5. 초기 데이터 설정 (MySQL)
+
+MySQL 데이터베이스에 전공 데이터를 적재하기 위해 마이그레이션 스크립트를 실행합니다:
+
+```bash
+python scripts/migrate_to_mysql.py
+```
+
+### 6. Django 데이터베이스 마이그레이션
 
 ```bash
 cd unigo
