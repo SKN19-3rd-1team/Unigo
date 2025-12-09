@@ -45,3 +45,12 @@
    - **마이그레이션 도구 (`management/commands/load_major_data.py`)**:
      - `backend/data/major_detail.json`의 대용량 전공 데이터를 Django DB 모델로 적재하는 커맨드 개발.
      - 실행: `python manage.py load_major_data`
+
+6. **로깅 시스템 구축** (2025-12-09)
+   - **목적**: 운영 환경에서의 에러 추적 및 사용자 활동 모니터링 강화.
+   - **설정 (`settings.py`)**:
+     - `RotatingFileHandler`를 사용하여 로그 파일(`logs/unigo.log`)이 15MB 초과 시 자동 회전되도록 설정.
+     - 파일 로그는 `INFO` 레벨, 콘솔 로그는 `DEBUG` 레벨로 분리.
+   - **적용 (`views.py`)**:
+     - `logging` 모듈을 도입하여 `print` 문을 `logger.info`, `logger.debug`, `logger.error`로 전면 교체.
+     - 주요 API(`chat_api`, `onboarding_api`)의 요청 수신, 데이터 처리, 에러 발생 시점을 체계적으로 기록.
