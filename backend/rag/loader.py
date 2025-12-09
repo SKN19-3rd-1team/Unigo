@@ -19,6 +19,7 @@ from backend.config import get_settings, resolve_path
 
 # ==================== Major Detail Loading ====================
 
+
 # JSON 전공 데이터를 구조화한 레코드 모델
 @dataclass
 class MajorRecord:
@@ -107,12 +108,12 @@ def _calculate_acceptance_rate(chart_data: Any) -> Optional[float]:
     """
     if not chart_data or not isinstance(chart_data, list) or not chart_data:
         return None
-    
+
     # chartData는 리스트이고 첫 번째 요소에 모든 데이터가 있음
     stats = chart_data[0]
     if not isinstance(stats, dict):
         return None
-        
+
     applicants_list = stats.get("applicant")
     if not applicants_list or not isinstance(applicants_list, list):
         return None
@@ -125,7 +126,7 @@ def _calculate_acceptance_rate(chart_data: Any) -> Optional[float]:
             continue
         label = item.get("item")
         data_str = item.get("data", "0")
-        
+
         try:
             val = float(data_str)
             if label == "지원자":
@@ -138,7 +139,7 @@ def _calculate_acceptance_rate(chart_data: Any) -> Optional[float]:
     if applicant_count > 0:
         rate = (entrant_count / applicant_count) * 100
         return round(rate, 1)
-        
+
     return None
 
 
@@ -167,6 +168,69 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
     """
     # 기본 경로는 설정값(MAJOR_DETAIL_PATH)을 사용
     settings = get_settings()
+
+    # 1. MySQL에서 데이터 로드 시도
+    if settings.mysql_host and settings.mysql_user:
+        try:
+            from backend.db.connection import SessionLocal
+            from backend.db.models import Major
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            try:
+                # 테이블 존재 여부 확인 (간단한 쿼리)
+                db.execute(text("SELECT 1 FROM majors LIMIT 1"))
+
+                db_records = db.query(Major).all()
+                if db_records:
+                    print(f"✅ Loaded {len(db_records)} records from MySQL database.")
+                    results = []
+                    for row in db_records:
+                        # DB 모델 -> MajorRecord 변환
+                        record = MajorRecord(
+                            major_id=row.major_id,
+                            major_name=row.major_name,
+                            cluster=row.cluster,
+                            summary=row.summary or "",
+                            interest=row.interest or "",
+                            property=row.property or "",
+                            relate_subject=row.relate_subject,
+                            job=row.job or "",
+                            enter_field=row.enter_field,
+                            salary=row.salary,
+                            employment=row.employment,
+                            employment_rate=row.employment_rate,
+                            acceptance_rate=row.acceptance_rate,
+                            department_aliases=row.department_aliases or [],
+                            career_act=row.career_act,
+                            qualifications=row.qualifications,
+                            main_subject=row.main_subject,
+                            university=row.university,
+                            chart_data=row.chart_data,
+                            raw=row.raw_data or {},
+                            gender=None,  # DB 컬럼에 없으면 none 또는 추가 필요
+                            satisfaction=None,
+                        )
+                        # gender/satisfaction 통계는 chart_data에서 다시 추출하거나 컬럼 추가 필요
+                        # 여기서는 chart_data가 있으면 다시 계산하도록 처리 가능하지만
+                        # 일단 있는 데이터로 채워넣음
+                        if row.chart_data and isinstance(row.chart_data, list):
+                            stats_block = row.chart_data[0]
+                            if isinstance(stats_block, dict):
+                                record.gender = stats_block.get("gender")
+                                record.satisfaction = stats_block.get("satisfaction")
+                                # employment_rate는 별도 컬럼으로 저장했으므로 덮어쓰지 않아도 됨
+
+                        results.append(record)
+                    return results
+            except Exception as e:
+                print(f"⚠️ MySQL load failed (falling back to JSON): {e}")
+            finally:
+                db.close()
+        except ImportError:
+            pass
+
+    # 2. JSON 파일에서 로드 (Fallback)
     json_path = Path(resolve_path(path if path else settings.major_detail_path))
     data = json.loads(json_path.read_text(encoding="utf-8"))
 
@@ -174,7 +238,9 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
     seen_ids: dict[str, int] = {}
 
     for block_index, block in enumerate(data):
-        contents: Sequence[dict[str, Any]] = block.get("dataSearch", {}).get("content", []) or []
+        contents: Sequence[dict[str, Any]] = (
+            block.get("dataSearch", {}).get("content", []) or []
+        )
         for content_index, payload in enumerate(contents):
             major_name = (payload.get("major") or "").strip()
             base_slug = _slugify(major_name) or f"major-{block_index}-{content_index}"
@@ -184,16 +250,16 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
 
             salary = _parse_salary(payload.get("salary"))
             department_aliases = _split_multi_value(payload.get("department", ""))
-            
+
             # chartData 처리
             chart_data = payload.get("chartData")
             acceptance_rate = _calculate_acceptance_rate(chart_data)
-            
+
             # 통계 데이터 추출 (chartData[0] 내부에 존재)
             gender_stats = None
             satisfaction_stats = None
             employment_rate_stats = None
-            
+
             if chart_data and isinstance(chart_data, list) and len(chart_data) > 0:
                 stats_block = chart_data[0]
                 if isinstance(stats_block, dict):
@@ -259,7 +325,9 @@ def _extract_subject_tags(relate_subject: Any) -> list[str]:
     return _unique_preserve_order(tags)
 
 
-def _format_subject_text(relate_subject: Any) -> tuple[Optional[str], list[str], Optional[str]]:
+def _format_subject_text(
+    relate_subject: Any,
+) -> tuple[Optional[str], list[str], Optional[str]]:
     # 과목 리스트를 사람이 읽을 수 있는 텍스트와 태그 목록으로 변환
     if not isinstance(relate_subject, list):
         return None, [], None
@@ -278,9 +346,7 @@ def _format_subject_text(relate_subject: Any) -> tuple[Optional[str], list[str],
     if not lines:
         return None, [], None
 
-    text = (
-        "관련 과목 안내:\n" + "\n".join(f"- {line}" for line in lines)
-    )
+    text = "관련 과목 안내:\n" + "\n".join(f"- {line}" for line in lines)
     raw_block = "\n".join(lines)
     tags = _extract_subject_tags(relate_subject)
     return text, tags, raw_block
@@ -298,7 +364,9 @@ def _extract_job_tags(job_text: str) -> list[str]:
     return _unique_preserve_order(tags)
 
 
-def _format_job_text(job_text: str, enter_field: Any) -> tuple[Optional[str], list[str], Optional[str]]:
+def _format_job_text(
+    job_text: str, enter_field: Any
+) -> tuple[Optional[str], list[str], Optional[str]]:
     # 직업/진출분야 정보를 하나의 설명 텍스트로 합치고 태그를 뽑아냄
     lines: list[str] = []
     if job_text:
@@ -360,13 +428,17 @@ def build_major_docs(record: MajorRecord) -> list[MajorDoc]:
                 elif description:
                     activities.append(description)
             if activities:
-                interest_text = f"{interest_text}\n\n추천 활동:\n" + "\n".join(f"- {item}" for item in activities)
+                interest_text = f"{interest_text}\n\n추천 활동:\n" + "\n".join(
+                    f"- {item}" for item in activities
+                )
         docs.append(make_doc("interest", interest_text))
 
     if record.property:
         docs.append(make_doc("property", record.property))
 
-    subjects_text, subject_tags, raw_subjects = _format_subject_text(record.relate_subject)
+    subjects_text, subject_tags, raw_subjects = _format_subject_text(
+        record.relate_subject
+    )
     if subjects_text:
         docs.append(
             make_doc(

@@ -176,6 +176,7 @@ const showLoadingDetails = () => {
 // -- Onboarding Logic --
 
 const startOnboardingStep = async () => {
+    // 모든 질문이 끝나면 온보딩 완료 처리
     if (onboardingState.step >= ONBOARDING_QUESTIONS.length) {
         finishOnboarding();
         return;
@@ -185,9 +186,11 @@ const startOnboardingStep = async () => {
 
     // Check if we already asked this question in history (to avoid duplicates on refresh)
     // Simple heuristic: check if last AI message is the current prompt
+    // 새로고침 시 이전에 질문했던 내용이 중복 출력되는 것을 방지합니다.
     const lastAiMsg = chatHistory.slice().reverse().find(m => m.role === 'assistant');
     if (!lastAiMsg || lastAiMsg.content !== currentQ.prompt) {
         // Use typing effect for onboarding questions
+        // 온보딩 질문은 타이핑 효과와 함께 출력되어 사용자 몰입감을 높입니다.
         await appendBubbleWithTyping(currentQ.prompt, 'ai', true, 15);
     }
 
@@ -253,6 +256,7 @@ const finishOnboarding = async () => {
         await appendBubbleWithTyping("죄송합니다. 추천 정보를 불러오는데 실패했습니다.", 'ai', true, 20);
     }
 
+    // 최종적으로 채팅 입력창의 placeholder를 변경하여 자유 질문이 가능함을 알림
     if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
 };
 
@@ -306,6 +310,8 @@ const handleChatInput = async (text) => {
         // `run_mentor` code: 
         // messages.append(HumanMessage(content=question))
         // So we should NOT include the current question in history list passed to backend.
+        // 프론트엔드에서 방금 추가한 사용자 메시지가 chatHistory에 포함되어 있으므로,
+        // 백엔드로 보낼 때는 이를 제외하고 보냅니다. (백엔드에서 현재 질문을 별도 파라미터로 받기 때문)
 
         const historyToSend = chatHistory.slice(0, -1);
 

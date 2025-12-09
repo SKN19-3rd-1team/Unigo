@@ -41,10 +41,14 @@ MAJOR_DOC_WEIGHTS = {
 
 # 선호 전공 점수 부여 티어 (Tiered Scoring System)
 # 사용자가 명시적으로 선호한 전공에 대한 차등 점수 부여
-SCORE_TIER_1_EXACT_MATCH = 20.0      # 정확히 일치 (예: "컴퓨터공학" == "컴퓨터공학")
-SCORE_TIER_2_STARTS_WITH = 15.0      # 접두어 일치 (예: "컴퓨터공학" in "컴퓨터공학과")
-SCORE_TIER_3_CONTAINS = 10.0         # 포함 (예: "컴퓨터" in "정보컴퓨터공학부")
-SCORE_TIER_4_VECTOR_MATCH = 5.0      # 벡터/별칭 유사도 검색 결과
+# 검색된 결과가 사용자의 선호도와 얼마나 일치하는지에 따라 가중치를 다르게 설정하여
+# 추천의 정확도와 사용자 만족도를 높입니다.
+SCORE_TIER_1_EXACT_MATCH = (
+    20.0  # 정확히 일치 (예: "컴퓨터공학" == "컴퓨터공학") - 가장 높은 우선순위
+)
+SCORE_TIER_2_STARTS_WITH = 15.0  # 접두어 일치 (예: "컴퓨터공학" in "컴퓨터공학과")
+SCORE_TIER_3_CONTAINS = 10.0  # 포함 (예: "컴퓨터" in "정보컴퓨터공학부")
+SCORE_TIER_4_VECTOR_MATCH = 5.0  # 벡터/별칭 유사도 검색 결과 - 의미적 유사성 기반
 
 
 # ==================== ReAct 에이전트용 설정 ====================
@@ -200,7 +204,7 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
 
     # 입력이 너무 많으면 처리 비용이 크므로 제한
     targets = raw_majors[:5]
-    
+
     prompt = (
         "사용자가 입력한 대학 전공명(줄임말, 오타 포함)을 가장 적절한 '표준 학과명'으로 변환해주세요.\n"
         "학과명을 명확히 판단하기 힘들거나 오타가 있는경우, 사용자에게 자신이 추론한 '표준 학과명'이 맞는지 확인하는 절차를 거쳐주세요.\n"
@@ -208,11 +212,11 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
         f"입력: {', '.join(targets)}\n"
         "출력:"
     )
-    
+
     try:
         response = llm.invoke(prompt)
         content = response.content.strip()
-        
+
         # 쉼표로 분리하여 리스트로 변환
         normalized = [item.strip() for item in content.split(",") if item.strip()]
         print(f"🤖 LLM Normalized Majors: {targets} -> {normalized}")
@@ -230,6 +234,7 @@ def recommend_majors_node(state: MentorState) -> dict:
     onboarding_answers = state.get("onboarding_answers") or {}
     profile_text = _build_user_profile_text(onboarding_answers, state.get("question"))
 
+    # 온보딩 답변이 없으면 빈 결과 반환
     if not profile_text:
         return {
             "user_profile_text": "",
@@ -238,74 +243,91 @@ def recommend_majors_node(state: MentorState) -> dict:
             "major_scores": {},
         }
 
-    # 온보딩 텍스트를 단일 임베딩으로 바꿔 Pinecone 검색에 사용
+    # 1. 벡터 검색 (Vector Search)
+    # 온보딩 텍스트를 단일 임베딩으로 변환하여 Pinecone에서 의미적으로 유사한 전공 문서를 검색합니다.
     embeddings = get_embeddings()
     profile_embedding = embeddings.embed_query(profile_text)
 
+    # Pinecone에서 상위 50개 문서 검색
     hits = search_major_docs(profile_embedding, top_k=50)
+    # 검색된 문서들의 점수를 전공별로 합산
     aggregated_scores = aggregate_major_scores(hits, MAJOR_DOC_WEIGHTS)
-    
-    # 🎯 preferred_majors 우선 처리
+
+    # 2. 선호 전공 우선 처리 (Keyword Boosting)
+    # 벡터 검색 결과 외에, 사용자가 직접 입력한 '선호 전공'을 검색 결과에 강제로 포함시키고 점수를 부스팅합니다.
     preferred_majors = onboarding_answers.get("preferred_majors")
     preferred_major_ids = set()
-    
+
     if preferred_majors:
         # preferred_majors를 문자열 또는 리스트로 처리
         if isinstance(preferred_majors, str):
-            preferred_list = [m.strip() for m in preferred_majors.split(",") if m.strip()]
+            preferred_list = [
+                m.strip() for m in preferred_majors.split(",") if m.strip()
+            ]
         elif isinstance(preferred_majors, list):
-            preferred_list = [str(m).strip() for m in preferred_majors if str(m).strip()]
+            preferred_list = [
+                str(m).strip() for m in preferred_majors if str(m).strip()
+            ]
         else:
             preferred_list = []
-        
+
         if preferred_list:
             # 🤖 LLM을 통한 전공명 정규화 (줄임말/오타 보정)
             normalized_list = _normalize_majors_with_llm(preferred_list)
-            
+
             # [수정] 정규화된 결과가 있다면 원본(줄임말/오타)은 검색에서 제외하여 노이즈 방지
             # 예: "컴공" -> "컴퓨터공학과"로 변환되면 "컴공"으로는 검색하지 않음 ("냉동공조" 등이 검색되는 문제 해결)
             if normalized_list:
                 search_targets = normalized_list
             else:
                 search_targets = preferred_list
-            
+
             # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
-            from backend.rag.tools import _find_majors, _MAJOR_ID_MAP, _ensure_major_records
+            from backend.rag.tools import (
+                _find_majors,
+                _MAJOR_ID_MAP,
+                _ensure_major_records,
+            )
+
             _ensure_major_records()
-            
+
             # SearchHit 임포트 (함수 내 로컬 임포트)
             from backend.rag.retriever import SearchHit
-            
+
             # [수정] 이미 점수 부스팅을 적용한 전공은 중복 적용하지 않도록 set으로 관리
             boosted_ids = set()
 
             for preferred in search_targets:
                 print(f"🔍 Searching for preferred major: '{preferred}'")
-                
+
                 # 선호 전공 검색 (정확 매칭 + 벡터 검색)
                 preferred_matches = _find_majors(preferred, limit=5)
-                
+
                 for record in preferred_matches:
                     if not record.major_id:
                         continue
-                    
+
                     preferred_major_ids.add(record.major_id)
-                    
+
                     # 기존 aggregated_scores에 없으면 초기화
                     is_newly_added = False
                     if record.major_id not in aggregated_scores:
                         aggregated_scores[record.major_id] = 1.0
                         is_newly_added = True
-                        print(f"✅ Added preferred major '{record.major_name}' to results")
-                    
+                        print(
+                            f"✅ Added preferred major '{record.major_name}' to results"
+                        )
+
                     # 보너스 점수 적용 (차등 점수 부여 시스템)
                     if record.major_id not in boosted_ids:
                         # 점수 계산 로직 - 정확도에 따른 차등 점수 부여
-                        boost_score = SCORE_TIER_4_VECTOR_MATCH  # 기본값: 벡터 유사도 검색
-                        
+                        boost_score = (
+                            SCORE_TIER_4_VECTOR_MATCH  # 기본값: 벡터 유사도 검색
+                        )
+
                         rec_name = record.major_name.replace(" ", "")
                         pref_key = preferred.replace(" ", "")
-                        
+
                         if rec_name == pref_key:
                             boost_score = SCORE_TIER_1_EXACT_MATCH
                             tier_desc = "Tier 1 (Exact Match)"
@@ -320,7 +342,9 @@ def recommend_majors_node(state: MentorState) -> dict:
 
                         aggregated_scores[record.major_id] = boost_score
                         boosted_ids.add(record.major_id)
-                        print(f"🎯 Set '{record.major_name}' score to {boost_score:.2f} [{tier_desc}]")
+                        print(
+                            f"🎯 Set '{record.major_name}' score to {boost_score:.2f} [{tier_desc}]"
+                        )
 
                     # [핵심 수정] hits 리스트에 해당 전공이 없으면 합성 SearchHit 추가
                     # 이 과정이 없으면 _summarize_major_hits가 해당 전공을 제외해버림
@@ -329,18 +353,19 @@ def recommend_majors_node(state: MentorState) -> dict:
                             doc_id=f"synthetic-{record.major_id}",
                             major_id=record.major_id,
                             major_name=record.major_name,
-                            doc_type="summary", # 기본 요약 문서로 취급
-                            score=1.0, # 기본 점수
+                            doc_type="summary",  # 기본 요약 문서로 취급
+                            score=1.0,  # 기본 점수
                             metadata={
                                 "cluster": record.cluster,
                                 "salary": record.salary,
-                                "relate_subject_tags": [], # 태그 추출 로직 생략 (필요 시 loader 함수 사용)
+                                "relate_subject_tags": [],  # 태그 추출 로직 생략 (필요 시 loader 함수 사용)
                                 "job_tags": [],
                             },
-                            text=record.summary or f"{record.major_name}에 대한 정보입니다."
+                            text=record.summary
+                            or f"{record.major_name}에 대한 정보입니다.",
                         )
                         hits.append(synthetic_hit)
-    
+
     recommended = _summarize_major_hits(hits, aggregated_scores)
 
     serialized_hits = [
@@ -366,6 +391,7 @@ def recommend_majors_node(state: MentorState) -> dict:
 
 # ==================== ReAct 스타일 에이전트 노드 ====================
 
+
 def agent_node(state: MentorState) -> dict:
     """
     [ReAct 패턴] LLM이 자율적으로 tool 호출 여부를 결정.
@@ -378,7 +404,8 @@ def agent_node(state: MentorState) -> dict:
         interests_text = f"{interests}" if interests else "없음"
 
         # ✅ f-string 내부 JSON 예시는 {{ }} 로 이스케이프!
-        system_message = SystemMessage(content=f"""
+        system_message = SystemMessage(
+            content=f"""
 당신은 학생들의 전공 선택을 돕는 '대학 전공 탐색 멘토'입니다. 모든 답변은 한국어로 작성하세요.
 
 [🚨 절대 규칙 - 반드시 준수]
@@ -393,27 +420,28 @@ def agent_node(state: MentorState) -> dict:
 - tool_calls 없이 추측하려는 경우, get_search_help()를 호출해 검색 도움말을 제공하세요.
 
 학생 관심사: {interests_text}
-""")
-                                       
+"""
+        )
+
     messages = [system_message] + messages
-    
+
     # 🔍 입력 전처리: 단일 학과명 질문 감지 및 개선
     from backend.graph.helper import is_single_major_query, enhance_single_major_query
-    
+
     # 마지막 사용자 메시지 확인
     last_user_msg = None
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             last_user_msg = msg
             break
-    
+
     # 단일 학과명 질문이면 자동으로 명확한 질문으로 변환
     if last_user_msg and is_single_major_query(last_user_msg.content):
         original_query = last_user_msg.content
         enhanced_query = enhance_single_major_query(original_query)
         print(f"🔍 Detected single major query: '{original_query}'")
         print(f"✨ Enhanced to: '{enhanced_query}'")
-        
+
         # 마지막 사용자 메시지를 개선된 버전으로 교체
         for i in range(len(messages) - 1, -1, -1):
             if isinstance(messages[i], HumanMessage) and messages[i] == last_user_msg:
@@ -422,28 +450,32 @@ def agent_node(state: MentorState) -> dict:
 
     response = llm_with_tools.invoke(messages)
 
-
     # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
     # ToolMessage가 없다는 것은 아직 툴 결과를 받지 않았다는 의미
     from langchain_core.messages import ToolMessage
+
     has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
 
     # 툴 결과가 없는 상태에서 LLM이 tool_calls 없이 답변하려고 하면 차단
     if not has_tool_results:
         if not hasattr(response, "tool_calls") or not response.tool_calls:
-            print("⚠️ WARNING: LLM attempted to answer without using tools. Forcing tool usage.")
+            print(
+                "⚠️ WARNING: LLM attempted to answer without using tools. Forcing tool usage."
+            )
             # 강제로 재시도 메시지 추가
-            error_message = HumanMessage(content=(
-                "❌ 오류: 당신은 툴을 사용하지 않고 답변하려고 했습니다.\n"
-                "**반드시 먼저 적절한 툴을 호출해야 합니다.**\n\n"
-                "다시 한 번 강조합니다:\n"
-                "1. list_departments: 학과 목록 검색\n"
-                "2. get_universities_by_department: 특정 학과를 개설한 대학 검색\n"
-                "3. get_major_career_info: 전공별 직업/진출 분야 확인\n"
-                "4. get_university_admission_info: 대학별 입시 정보(정시컷, 수시컷) 조회\n"
-                "5. get_search_help: 검색 도움말\n\n"
-                "학생의 원래 질문을 다시 읽고, 적절한 툴을 **지금 즉시** 호출하세요."
-            ))
+            error_message = HumanMessage(
+                content=(
+                    "❌ 오류: 당신은 툴을 사용하지 않고 답변하려고 했습니다.\n"
+                    "**반드시 먼저 적절한 툴을 호출해야 합니다.**\n\n"
+                    "다시 한 번 강조합니다:\n"
+                    "1. list_departments: 학과 목록 검색\n"
+                    "2. get_universities_by_department: 특정 학과를 개설한 대학 검색\n"
+                    "3. get_major_career_info: 전공별 직업/진출 분야 확인\n"
+                    "4. get_university_admission_info: 대학별 입시 정보(정시컷, 수시컷) 조회\n"
+                    "5. get_search_help: 검색 도움말\n\n"
+                    "학생의 원래 질문을 다시 읽고, 적절한 툴을 **지금 즉시** 호출하세요."
+                )
+            )
             messages.append(error_message)
 
             # 재시도
@@ -451,16 +483,21 @@ def agent_node(state: MentorState) -> dict:
 
             # 재시도에도 툴을 사용하지 않으면 get_search_help로 폴백
             if not hasattr(response, "tool_calls") or not response.tool_calls:
-                print("⚠️ CRITICAL: LLM still refuses to use tools. Falling back to get_search_help.")
+                print(
+                    "⚠️ CRITICAL: LLM still refuses to use tools. Falling back to get_search_help."
+                )
                 from langchain_core.messages import AIMessage
+
                 # 강제로 get_search_help 툴 호출 생성
                 response = AIMessage(
                     content="",
-                    tool_calls=[{
-                        "name": "get_search_help",
-                        "args": {},
-                        "id": "forced_search_help"
-                    }]
+                    tool_calls=[
+                        {
+                            "name": "get_search_help",
+                            "args": {},
+                            "id": "forced_search_help",
+                        }
+                    ],
                 )
 
     # 4. LLM의 응답(response)을 messages에 추가하여 상태 업데이트
