@@ -28,7 +28,7 @@
 
 ```bash
 git clone <repository-url>
-cd frontend
+cd unigo
 ```
 
 ### 2. Python 가상환경 생성 (권장)
