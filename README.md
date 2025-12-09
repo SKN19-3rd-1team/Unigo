@@ -134,12 +134,17 @@ python manage.py runserver
 - **대화 기록 저장**: 로그인 시 모든 대화와 전공 추천 이력이 DB에 저장됩니다.
 - **세션 유지**: 비로그인 사용자는 세션 ID 기반으로 단기 기록을 유지합니다.
 
-## 🗄️ 데이터 마이그레이션 (New)
-전공 데이터(`major_detail.json`)를 DB로 적재하여 효율적인 관리가 가능합니다.
+## 🗄️ 데이터 마이그레이션 (MySQL) (New)
+전공 데이터(`major_detail.json`)를 MySQL DB로 적재하여 통합 관리가 가능합니다.
+
+상세한 내용은 [MySQL 마이그레이션 가이드](docs/mysql_migration.md)를 참고하세요.
 
 ```bash
-# 전공 데이터 DB 마이그레이션 실행
-python manage.py load_major_data
+# 1. MySQL 마이그레이션 (RAG 데이터)
+python scripts/migrate_to_mysql.py
+
+# 2. Django 마이그레이션 (앱 테이블)
+python unigo/manage.py migrate
 ```
 
 ## 📚 주요 기능
@@ -200,7 +205,8 @@ python manage.py load_major_data
 - **Vanilla JavaScript**: 클라이언트 로직 (프레임워크 없음)
 
 ### Data
-- **PostgreSQL / SQLite**: 사용자, 대화 기록, 전공 데이터 저장소
+- **MySQL**: 통합 데이터베이스 (RAG + Web App)
+- **Pinecone**: 벡터 데이터베이스
 - **커리어넷 & KCUE**: 원천 데이터 출처
 
 ## 📖 API 엔드포인트
