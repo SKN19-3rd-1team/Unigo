@@ -35,14 +35,14 @@ class SearchHit:
 
 def search_major_docs(
     query_embedding: List[float],
-    top_k: int = 50,
+    top_k: int = 150,
 ) -> List[SearchHit]:
     """
     Pinecone 전공 인덱스에서 주어진 임베딩과 가장 유사한 문서들을 조회한다.
 
     Args:
         query_embedding: 사용자 질의/프로필을 임베딩한 벡터 값
-        top_k: 상위 몇 개의 문서를 반환할지 결정 (기본 50개)
+        top_k: 상위 몇 개의 문서를 반환할지 결정 (기본 150개로 상향 조정하여 Recall 개선)
 
     Returns:
         SearchHit 객체 리스트 (문서별 점수, 메타데이터 포함)

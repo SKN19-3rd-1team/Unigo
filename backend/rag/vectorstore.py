@@ -14,6 +14,7 @@ Pinecone을 사용하여 전공 정보를 벡터로 저장하고 검색하는 �
 2. index_major_docs(): 전공 문서를 Pinecone에 인덱싱
 3. clear_major_index(): Pinecone 인덱스 초기화
 """
+
 # backend/rag/vectorstore.py
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ _MAJOR_INDEX_CACHE = None
 
 
 # ==================== Pinecone Vector Store for Majors ====================
+
 
 def _get_pinecone_client() -> Pinecone:
     # Pinecone API 클라이언트를 초기화하고 키 누락 시 명확한 에러를 던진다
@@ -58,9 +60,10 @@ def _list_index_names(client: Pinecone) -> list[str]:
         return [name for name in names if name]
 
     if hasattr(response, "indexes"):
-        return [idx.get("name") if isinstance(idx, dict)
-                else getattr(idx, "name", None)
-                for idx in getattr(response, "indexes")]  # type: ignore[arg-type]
+        return [
+            idx.get("name") if isinstance(idx, dict) else getattr(idx, "name", None)
+            for idx in getattr(response, "indexes")
+        ]  # type: ignore[arg-type]
 
     if hasattr(response, "names") and callable(response.names):
         return list(response.names())
@@ -129,6 +132,7 @@ def _get_major_namespace() -> str | None:
         return None
     namespace = namespace.strip()
     return namespace or None
+
 
 def get_major_index():
     # LangChain 외부에서 직접 인덱스 핸들이 필요할 때 사용
@@ -214,6 +218,12 @@ def index_major_docs(docs: list[MajorDoc]) -> int:
         # salary: None이 아닐 때만 숫자로 넣기
         if doc.salary is not None:
             meta["salary"] = float(doc.salary)
+
+        if doc.employment_rate is not None:
+            meta["employment_rate"] = float(doc.employment_rate)
+
+        if doc.acceptance_rate is not None:
+            meta["acceptance_rate"] = float(doc.acceptance_rate)
 
         # 태그 리스트: 비어있지 않을 때만 넣기 (list[str] 형태 유지)
         if getattr(doc, "relate_subject_tags", None):
