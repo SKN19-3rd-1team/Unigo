@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 import sys
 from pathlib import Path
@@ -120,7 +121,8 @@ def preprocess_item(raw_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "interest": data.get("interest"),
         "property": data.get("property"),
         "job": data.get("job"),
-        "employment": data.get("employment"),  # HTML 형태 그대로 유지
+        # HTML 태그 제거 (예: "<strong>60</strong>%" -> "60%")
+        "employment": re.sub(r"<[^>]+>", "", data.get("employment") or ""),
         # 숫자 필드
         "salary": safe_float(data.get("salary")),
         "employment_rate": stats["employment_rate"],
