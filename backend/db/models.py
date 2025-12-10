@@ -11,7 +11,6 @@ class Major(Base):
     major_name = Column(String(255), index=True, nullable=False)
 
     # Text fields
-    cluster = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
     interest = Column(Text, nullable=True)
     property = Column(Text, nullable=True)
@@ -36,3 +35,32 @@ class Major(Base):
     # Extracted stats from chart_data (optional, for easier querying)
     employment_rate = Column(Float, nullable=True)
     acceptance_rate = Column(Float, nullable=True)
+
+
+class MajorCategory(Base):
+    """
+    전공 카테고리와 해당 카테고리에 속한 전공 목록을 저장합니다.
+    Source: backend/data/major_categories.json
+    """
+
+    __tablename__ = "major_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_name = Column(String(255), unique=True, index=True, nullable=False)
+
+    # JSON list of major names: ["Major A", "Major B", ...]
+    major_names = Column(LONGTEXT, nullable=False)
+
+
+class University(Base):
+    """
+    대학 기본 정보 (코드, URL)를 저장합니다.
+    Source: backend/data/university_data_cleaned.json
+    """
+
+    __tablename__ = "universities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True, nullable=False)
+    code = Column(String(50), nullable=True)
+    url = Column(String(500), nullable=True)

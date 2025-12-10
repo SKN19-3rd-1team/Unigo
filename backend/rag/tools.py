@@ -25,6 +25,7 @@ from langchain_core.tools import tool
 import re
 import json
 from pathlib import Path
+from difflib import SequenceMatcher
 from backend.config import get_settings
 
 from .vectorstore import get_major_vectorstore
@@ -252,222 +253,158 @@ def _expand_category_query(query: str) -> Tuple[List[str], str]:
     return dedup_tokens, embed_text
 
 
-# ==================== 전공 레코드 캐시 관리 ====================
+# ==================== 전공 데이터 관리 (DB 기반) ====================
 
-# 전역 캐시 변수 (첫 호출 시 major_detail.json을 로드하여 메모리에 보관)
-_MAJOR_RECORDS_CACHE: Optional[List[Any]] = None
-_MAJOR_ID_MAP: Dict[str, Any] = {}  # major_id로 빠른 조회
-_MAJOR_NAME_MAP: Dict[str, Any] = {}  # 정규화된 전공명으로 빠른 조회
-_MAJOR_ALIAS_MAP: Dict[str, Any] = {}  # 별칭으로 빠른 조회
+from backend.db.connection import SessionLocal
+from backend.db.models import Major
 
 
-def _ensure_major_records() -> None:
+def _convert_db_model_to_record(row: Major) -> Any:
+    """DB 모델 객체를 MajorRecord 데이터클래스로 변환합니다."""
+    from backend.rag.loader import MajorRecord  # 순환 참조 방지
+
+    # 차트 데이터에서 성비/만족도 추출
+    gender = None
+    satisfaction = None
+
+    chart_data_obj = json.loads(row.chart_data) if row.chart_data else None
+    if chart_data_obj and isinstance(chart_data_obj, list):
+        stats_block = chart_data_obj[0]
+        if isinstance(stats_block, dict):
+            gender = stats_block.get("gender")
+            satisfaction = stats_block.get("satisfaction")
+
+    aliases = json.loads(row.department_aliases) if row.department_aliases else []
+
+    return MajorRecord(
+        major_id=row.major_id,
+        major_name=row.major_name,
+        summary=row.summary or "",
+        interest=row.interest or "",
+        property=row.property or "",
+        relate_subject=json.loads(row.relate_subject) if row.relate_subject else None,
+        job=row.job or "",
+        enter_field=json.loads(row.enter_field) if row.enter_field else None,
+        salary=row.salary,
+        employment=row.employment,
+        employment_rate=row.employment_rate,
+        acceptance_rate=row.acceptance_rate,
+        department_aliases=aliases,
+        career_act=json.loads(row.career_act) if row.career_act else None,
+        qualifications=row.qualifications,
+        main_subject=json.loads(row.main_subject) if row.main_subject else None,
+        university=json.loads(row.university) if row.university else None,
+        chart_data=chart_data_obj,
+        raw=json.loads(row.raw_data) if row.raw_data else {},
+        gender=gender,
+        satisfaction=satisfaction,
+    )
+
+
+def _lookup_major_by_name(query: str) -> Optional[Any]:
     """
-    전공 레코드를 메모리에 캐싱하고 인덱스 맵을 생성
-
-    첫 호출 시에만 major_detail.json을 로드하여:
-    1. _MAJOR_RECORDS_CACHE에 전체 레코드 저장
-    2. _MAJOR_ID_MAP에 major_id 기반 인덱스 생성
-    3. _MAJOR_NAME_MAP에 전공명 기반 인덱스 생성
-    4. _MAJOR_ALIAS_MAP에 별칭 기반 인덱스 생성
-
-    이후 호출 시에는 캐시된 데이터를 재사용
+    정확한 전공명 또는 별칭으로 전공 정보를 DB에서 검색합니다. (Exact Match Only)
     """
-    global _MAJOR_RECORDS_CACHE, _MAJOR_ID_MAP, _MAJOR_NAME_MAP, _MAJOR_ALIAS_MAP
-
-    # 이미 캐시되어 있으면 스킵
-    if _MAJOR_RECORDS_CACHE is not None:
-        return
-
-    # major_detail.json 로드
-    records = load_major_detail()
-    _MAJOR_RECORDS_CACHE = records
-
-    # 인덱스 맵 초기화
-    id_map: Dict[str, Any] = {}
-    name_map: Dict[str, Any] = {}
-    alias_map: Dict[str, Any] = {}
-
-    # 각 레코드를 순회하며 인덱스 생성
-    for record in records:
-        # major_id 기반 인덱스
-        if record.major_id:
-            id_map[record.major_id] = record
-
-        # 전공명 기반 인덱스
-        if record.major_name:
-            norm_name = _normalize_major_key(record.major_name)
-            if norm_name:
-                name_map[norm_name] = record
-                alias_map.setdefault(norm_name, record)
-
-        # 별칭 기반 인덱스
-        for alias in getattr(record, "department_aliases", []) or []:
-            norm_alias = _normalize_major_key(alias)
-            if norm_alias and norm_alias not in alias_map:
-                alias_map[norm_alias] = record
-
-    # 전역 변수에 할당
-    _MAJOR_ID_MAP = id_map
-    _MAJOR_NAME_MAP = name_map
-    _MAJOR_ALIAS_MAP = alias_map
-
-
-def _get_major_records() -> List[Any]:
-    """
-    캐시된 전공 레코드 리스트 반환
-
-    Returns:
-        전체 MajorRecord 객체 리스트
-    """
-    _ensure_major_records()
-    return _MAJOR_RECORDS_CACHE or []
-
-
-def _lookup_major_by_name(name: str) -> Optional[Any]:
-    """
-    전공명 또는 별칭으로 전공 레코드 조회
-
-    Args:
-        name: 전공명 또는 별칭
-
-    Returns:
-        매칭되는 MajorRecord 객체 또는 None
-    """
-    if not name:
+    query_str = query.strip()
+    if not query_str:
         return None
 
-    _ensure_major_records()
-    key = _normalize_major_key(name)
-
-    # 정확한 전공명 매칭 우선, 없으면 별칭 매칭
-    return _MAJOR_NAME_MAP.get(key) or _MAJOR_ALIAS_MAP.get(key)
-
-
-# ==================== 벡터 검색 ====================
-
-
-def _search_major_records_by_vector(query_text: str, limit: int) -> List[Any]:
-    """
-    Pinecone 벡터 데이터베이스를 사용한 전공 검색
-
-    Args:
-        query_text: 검색 쿼리 텍스트
-        limit: 반환할 최대 결과 수
-
-    Returns:
-        유사도가 높은 순으로 정렬된 MajorRecord 리스트
-    """
-    if not query_text.strip():
-        return []
-
-    _ensure_major_records()
-
-    # 벡터스토어 로드
+    session = SessionLocal()
     try:
-        vectorstore = get_major_vectorstore()
-    except Exception as exc:
-        print(f"⚠️  Unable to load major vectorstore for query '{query_text}': {exc}")
+        # 1. 전공명 정확 일치
+        obj = session.query(Major).filter(Major.major_name == query_str).first()
+
+        # 2. 별칭 검색 (전공명 일치가 없을 경우)
+        if not obj:
+            # JSON 리스트 내 검색 (LIKE 사용)
+            search_pattern = f'%"{query_str}"%'
+            obj = (
+                session.query(Major)
+                .filter(Major.department_aliases.like(search_pattern))
+                .first()
+            )
+
+        if obj:
+            return _convert_db_model_to_record(obj)
+        return None
+    finally:
+        session.close()
+
+
+def _filter_majors_by_token(token: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Any]:
+    """
+    전공명에 특정 토큰(키워드)이 포함된 전공들을 DB에서 검색합니다. (Partial Match)
+    """
+    token_str = token.strip()
+    if not token_str:
         return []
 
-    # 유사도 검색 실행
+    session = SessionLocal()
     try:
-        docs = vectorstore.similarity_search(query_text, k=max(limit, 5))
-    except Exception as exc:
-        print(f"⚠️  Vector search failed for majors query '{query_text}': {exc}")
-        return []
-
-    # 검색 결과를 MajorRecord로 변환 (중복 제거)
-    matches: List[Any] = []
-    seen_ids: set[str] = set()
-
-    for doc in docs:
-        meta = doc.metadata or {}
-        major_id = meta.get("major_id")
-
-        # major_id가 없거나 이미 추가된 경우 스킵
-        if not major_id or major_id in seen_ids:
-            continue
-
-        # 캐시에서 레코드 조회
-        record = _MAJOR_ID_MAP.get(major_id)
-        if record is None:
-            continue
-
-        seen_ids.add(major_id)
-        matches.append(record)
-
-        # 제한 수에 도달하면 중단
-        if len(matches) >= limit:
-            break
-
-    return matches
+        results = (
+            session.query(Major)
+            .filter(Major.major_name.like(f"%{token_str}%"))
+            .limit(limit)
+            .all()
+        )
+        return [_convert_db_model_to_record(obj) for obj in results]
+    finally:
+        session.close()
 
 
-def _filter_records_by_tokens(tokens: List[str], limit: int) -> List[Any]:
+def _search_major_records_by_vector(
+    query: str, limit: int = DEFAULT_SEARCH_LIMIT
+) -> List[Any]:
     """
-    토큰 포함 여부로 전공 레코드 필터링
-
-    모든 토큰이 전공명에 포함되어 있는 레코드만 반환
-
-    Args:
-        tokens: 검색 토큰 리스트
-        limit: 반환할 최대 결과 수
-
-    Returns:
-        필터링된 MajorRecord 리스트
+    벡터 검색을 통해 유사한 전공을 찾고, DB에서 상세 정보를 조회합니다.
     """
-    if not tokens:
+    from backend.rag.embeddings import get_embeddings
+    from backend.rag.retriever import search_major_docs, aggregate_major_scores
+
+    embeddings = get_embeddings()
+    query_vec = embeddings.embed_query(query)
+
+    # top_k는 limit * VECTOR_SEARCH_MULTIPLIER로 여유있게 가져옴
+    hits = search_major_docs(query_vec, top_k=limit * VECTOR_SEARCH_MULTIPLIER)
+
+    # 점수 집계
+    aggregated_scores = aggregate_major_scores(
+        hits, doc_type_weights={"summary": 1.2, "subjects": 0.8, "jobs": 0.8}
+    )
+
+    # 상위 major_id 추출
+    sorted_majors = sorted(aggregated_scores.items(), key=lambda x: x[1], reverse=True)[
+        :limit
+    ]
+    top_ids = [mid for mid, score in sorted_majors]
+
+    if not top_ids:
         return []
 
-    # 토큰을 소문자로 정규화
-    normalized = [t.lower() for t in tokens if t]
-    if not normalized:
-        return []
+    session = SessionLocal()
+    try:
+        records = []
+        majors = session.query(Major).filter(Major.major_id.in_(top_ids)).all()
+        major_map = {m.major_id: m for m in majors}
 
-    results: List[Any] = []
-    seen_ids: set[str] = set()
+        for mid in top_ids:
+            if mid in major_map:
+                records.append(_convert_db_model_to_record(major_map[mid]))
 
-    # 전체 레코드를 순회하며 필터링
-    for record in _get_major_records():
-        target = _normalize_major_key(record.major_name)
-
-        # 모든 토큰이 전공명에 포함되어 있는지 확인
-        if all(tok in target for tok in normalized):
-            # 중복 제거
-            if record.major_id and record.major_id in seen_ids:
-                continue
-
-            if record.major_id:
-                seen_ids.add(record.major_id)
-
-            results.append(record)
-
-            # 제한 수에 도달하면 중단
-            if len(results) >= limit:
-                break
-
-    return results
+        return records
+    finally:
+        session.close()
 
 
 def _find_majors(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Any]:
     """
-    통합 전공 검색 함수 (4단계 검색 전략)
+    통합 전공 검색 함수 (4단계 검색 전략 - DB 기반)
 
-    검색 우선순위 (Fallback Strategy):
-    1. **정확한 전공명 매칭**: 사용자가 정확한 전공명을 입력했을 때 가장 신뢰도 높은 결과 보장
-    2. **토큰 별칭 확인**: 정확한 일치가 없을 때, 입력된 키워드(토큰)와 별칭이 매칭되는지 확인
-    3. **벡터 유사도 검색**: 의미 기반 검색을 통해 직접적인 키워드가 없어도 연관 전공 추천 (항상 수행)
-    4. **토큰 포함 여부 필터링**: 위 단계들에서 충분한 결과가 없을 때, 전공명에 키워드가 포함된 경우를 찾아 보완
-
-    Args:
-        query: 검색 쿼리
-        limit: 반환할 최대 결과 수
-
-    Returns:
-        검색된 MajorRecord 리스트 (최대 limit개)
+    1. 정확한 전공명 매칭
+    2. 별칭 매칭
+    3. 벡터 유사도 검색 (항상 수행)
+    4. 토큰 필터링 (보완)
     """
-    _ensure_major_records()
     matches: List[Any] = []
     seen_ids: set[str] = set()
 
@@ -475,47 +412,42 @@ def _find_majors(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Any]:
     direct = _lookup_major_by_name(query)
     if direct:
         matches.append(direct)
-        if direct.major_id:
-            seen_ids.add(direct.major_id)
+        seen_ids.add(direct.major_id)
 
-    # 쿼리 확장 (카테고리 → 토큰 변환)
+    # 쿼리 확장
     tokens, embed_text = _expand_category_query(query)
 
-    # 2단계: 별칭 검색 (정확한 매칭이 없을 경우)
+    # 2단계: 별칭 검색 (토큰 기반)
     if not matches and tokens:
         for token in tokens:
             alias_match = _lookup_major_by_name(token)
-            if alias_match and alias_match not in matches:
+            if alias_match and alias_match.major_id not in seen_ids:
                 matches.append(alias_match)
-                if alias_match.major_id:
-                    seen_ids.add(alias_match.major_id)
+                seen_ids.add(alias_match.major_id)
 
-    # 3단계: 벡터 유사도 검색 (항상 수행하여 연관 전공 포함)
+    # 3단계: 벡터 유사도 검색 (항상 수행)
     search_text = embed_text or query
     vector_matches = _search_major_records_by_vector(
-        search_text, limit=max(limit * VECTOR_SEARCH_MULTIPLIER, DEFAULT_SEARCH_LIMIT)
+        search_text, limit=max(limit, DEFAULT_SEARCH_LIMIT)
     )
 
     for record in vector_matches:
-        if record.major_id and record.major_id in seen_ids:
-            continue
-        matches.append(record)
-        if record.major_id:
+        if record.major_id not in seen_ids:
+            matches.append(record)
             seen_ids.add(record.major_id)
-        if len(matches) >= max(limit, DEFAULT_SEARCH_LIMIT):
+        if len(matches) >= limit:
             break
 
-    # 4단계: 토큰 필터링 (검색 결과가 없을 경우 최후의 수단)
-    if not matches and tokens:
-        token_matches = _filter_records_by_tokens(
-            tokens, limit=max(limit, DEFAULT_SEARCH_LIMIT)
-        )
-        for record in token_matches:
-            if record.major_id and record.major_id in seen_ids:
-                continue
-            matches.append(record)
-            if record.major_id:
-                seen_ids.add(record.major_id)
+    # 4단계: 토큰 필터링 (보완)
+    if len(matches) < limit and tokens:
+        for token in tokens:
+            token_matches = _filter_majors_by_token(token, limit=limit)
+            for record in token_matches:
+                if record.major_id not in seen_ids:
+                    matches.append(record)
+                    seen_ids.add(record.major_id)
+                if len(matches) >= limit:
+                    break
             if len(matches) >= limit:
                 break
 
@@ -624,6 +556,44 @@ def _collect_university_pairs(record: Any, limit: int = 3) -> List[str]:
             pairs.append(label)
 
     return pairs
+
+
+def _get_majors_for_university(university_name: str) -> List[str]:
+    """
+    특정 대학에 개설된 모든 학과 목록을 반환
+    (공백 제외 부분 일치로 대학 식별)
+    """
+    target_clean = university_name.replace(" ", "").strip()
+    if not target_clean:
+        return []
+
+    majors = set()
+    session = SessionLocal()
+    try:
+        # JSON 문자열 검색 (LIKE)
+        # university 컬럼에 해당 대학 이름이 포함된 레코드만 조회
+        # 성능 최적화를 위해 필요한 컬럼만 조회할 수도 있지만, _extract_university_entries가 전체 record를 씀
+        # university_name이 포함된 대략적인 후보군 조회
+        candidates = (
+            session.query(Major)
+            .filter(Major.university.like(f"%{target_clean}%"))
+            .all()
+        )
+
+        for row in candidates:
+            # DB 모델 -> Record 변환 (필요한 필드만 있어도 됨)
+            record = _convert_db_model_to_record(row)
+            entries = _extract_university_entries(record)
+            for entry in entries:
+                univ = entry.get("university", "")
+                if target_clean in univ.replace(" ", ""):
+                    dept = entry.get("department")
+                    if dept:
+                        majors.add(dept)
+
+        return sorted(list(majors))
+    finally:
+        session.close()
 
 
 # ==================== 진로 정보 추출 ====================
@@ -918,38 +888,64 @@ def list_departments(query: str, top_k: int = DEFAULT_SEARCH_LIMIT) -> str:
     )
     print(f"✅ Using list_departments tool with query: '{raw_query}'")
 
-    _ensure_major_records()
+    raw_query = (query or "").strip()
+    _log_tool_start(
+        "list_departments",
+        f"학과 목록 조회 - query='{raw_query or '전체'}', top_k={top_k}",
+    )
+    print(f"✅ Using list_departments tool with query: '{raw_query}'")
 
     # 전체 목록 요청 처리
     if raw_query == "전체" or not raw_query:
         dept_univ_map: Dict[str, List[str]] = {}
         all_names = []
 
-        # 모든 전공 레코드에서 전공명과 대학 정보 수집
-        for record in _get_major_records():
-            if not record.major_name:
-                continue
+        session = SessionLocal()
+        try:
+            # 모든 전공 조회 (top_k가 크지 않다면 limit 적용 가능하지만, 전체 통계가 필요하면 다 가져옴)
+            # 여기서는 top_k 제한을 걸어서 가져오는 것이 성능상 유리함
+            query_obj = session.query(Major)
 
-            all_names.append(record.major_name)
+            # 전체 개수 카운트
+            total_count = query_obj.count()
 
-            # 개설 대학 정보 수집
-            pairs = _collect_university_pairs(record)
-            if pairs:
-                bucket = dept_univ_map.setdefault(record.major_name, [])
-                for pair in pairs:
-                    if pair not in bucket:
-                        bucket.append(pair)
+            # 이름순 정렬하여 top_k만큼 가져오기 (혹은 전체 가져와서 포맷팅?)
+            # 여기서는 로직 유지: 전체 이름을 수집하고 정렬
+            # 하지만 DB에서 Order By 하는게 낫다.
+            # limit 없이 다 가져오는건 위험하므로 안전장치로 500개 제한
+            fetched_majors = query_obj.order_by(Major.major_name).limit(500).all()
+
+            for row in fetched_majors:
+                record = _convert_db_model_to_record(row)
+                if not record.major_name:
+                    continue
+
+                all_names.append(record.major_name)
+
+                # 개설 대학 정보 수집
+                pairs = _collect_university_pairs(record)
+                if pairs:
+                    bucket = dept_univ_map.setdefault(record.major_name, [])
+                    for pair in pairs:
+                        if pair not in bucket:
+                            bucket.append(pair)
+
+        finally:
+            session.close()
 
         # 정렬 및 제한
+        # DB에서 이미 정렬했지만, 중복 제거 등 파이썬 로직 유지
         all_names = sorted(set(all_names))
         limited = all_names[:top_k] if top_k else all_names
 
-        print(f"✅ Returning {len(limited)} majors out of {len(all_names)} total")
+        print(
+            f"✅ Returning {len(limited)} majors out of {len(all_names)} total (DB limited 500)"
+        )
 
         result_text = _format_department_output(
             raw_query or "전체",
             limited,
-            total_available=len(all_names),
+            total_available=total_count,  # 실제 DB 카운트 사용
             dept_univ_map=dept_univ_map,
         )
 
@@ -1066,6 +1062,10 @@ def get_major_career_info(major_name: str) -> Dict[str, Any]:
         "employment_rate": record.employment_rate,
         "acceptance_rate": record.acceptance_rate,
         "annual_salary": annual_salary,  # 연봉 정보 추가
+        "warning_context": (
+            "⚠️ 주의: 이 정보는 '커리어넷'에서 제공하는 [표준 학과]에 대한 일반적인 정보입니다. "
+            "특정 대학의 실제 커리큘럼이나 진로와는 다를 수 있음을 사용자에게 반드시 고지하세요."
+        ),
     }
 
     # 선택적 필드 추가
@@ -1152,8 +1152,6 @@ def get_universities_by_department(department_name: str) -> List[Dict[str, str]]
         ]
         _log_tool_result("get_universities_by_department", "학과명 누락 - 오류 반환")
         return result
-
-    _ensure_major_records()
 
     # 전공 검색 (정확한 매칭 우선)
     matches: List[Any] = []
@@ -1270,12 +1268,11 @@ def get_university_admission_info(
     # 대학 정보 조회
     university_info = lookup_university_url(query)
 
+    # 대학 정보가 없는 경우
     if university_info is None:
         print(f"⚠️  WARNING: No admission data found for '{query}'")
-
-        # 유사한 대학명 검색
+        # ...(기존 fallback 로직 유지)...
         similar_universities = search_universities(query)
-
         if similar_universities:
             similar_names = [u["university"] for u in similar_universities[:5]]
             result = {
@@ -1290,11 +1287,115 @@ def get_university_admission_info(
                 "message": f"'{query}' 대학의 입시 정보를 찾을 수 없습니다.",
                 "suggestion": "대학명을 정확히 입력해주세요. 예: '서울대학교', '연세대학교[본교]'",
             }
-
         _log_tool_result(
             "get_university_admission_info", "대학 데이터 미발견 - 오류 반환"
         )
         return result
+
+    # =========================================================
+    # [Smart Fallback] 학과 존재 여부 검증 및 유사 학과 추천
+    # =========================================================
+
+    # 1. 해당 대학의 모든 학과 목록 조회
+    available_majors = _get_majors_for_university(university_info["university"])
+
+    # 2. 학과명이 제공되었다면 검증 진행
+    validation_message = ""
+    suggested_majors = []
+
+    if dept:
+        # 정확히 일치하는 학과가 있는지 확인
+        # (공백/특수문자 제거 후 비교)
+        target_clean = _normalize_major_key(dept)
+        found = False
+
+        for m in available_majors:
+            if _normalize_major_key(m) == target_clean:
+                found = True
+                break
+
+        if not found:
+            print(
+                f"⚠️  Major '{dept}' not found in '{university_info['university']}'. Searching for similar majors..."
+            )
+
+            # 유사 학과 검색 (SequenceMatcher)
+            similarities = []
+            for m in available_majors:
+                # 간단한 유사도 계산
+                ratio = SequenceMatcher(
+                    None, target_clean, _normalize_major_key(m)
+                ).ratio()
+                # 포함 관계도 고려 (예: "소프트웨어" in "소프트웨어학부")
+                if (
+                    target_clean in _normalize_major_key(m)
+                    or _normalize_major_key(m) in target_clean
+                ):
+                    ratio += 0.2  # 가중치
+
+                if ratio > 0.4:  # 임계값
+                    similarities.append((ratio, m))
+
+            # 유사도 순 정렬
+            similarities.sort(key=lambda x: x[0], reverse=True)
+            suggested_majors = [item[1] for item in similarities[:3]]
+
+            if suggested_majors:
+                suggestions_str = ", ".join([f"'{m}'" for m in suggested_majors])
+                validation_message = (
+                    f"\n\n⚠️ **주의**: '{university_info['university']}'에서 '{dept}'라는 정확한 학과명을 찾을 수 없습니다. "
+                    f"혹시 **{suggestions_str}** 등을 찾으시나요? 아래 링크에서 정확한 모집 요강을 확인해주세요."
+                )
+            else:
+                # =========================================================
+                # [Global Major Lookup] 전역 데이터에서 대학 매핑 확인
+                # =========================================================
+                print(
+                    f"⚠️  Similarity search failed. Trying Global Major Lookup for '{dept}'..."
+                )
+
+                # 1. 전역 학과명으로 레코드 검색
+                global_record = _lookup_major_by_name(dept)
+                global_found_dept = None
+
+                if global_record:
+                    # 2. 해당 학과 레코드에 타겟 대학이 있는지 확인
+                    entries = _extract_university_entries(global_record)
+                    # 공백 제거 후 비교를 위해 타겟 대학명 정규화
+                    target_univ_clean = university_info["university"].replace(" ", "")
+
+                    for entry in entries:
+                        entry_univ = entry.get("university", "").replace(" ", "")
+                        # 대학명 포함 여부 확인 (예: "한양대학교[본교]" vs "한양대학교")
+                        if (
+                            target_univ_clean in entry_univ
+                            or entry_univ in target_univ_clean
+                        ):
+                            global_found_dept = entry.get("department")
+                            break
+
+                if global_found_dept:
+                    print(
+                        f"✅ Global Lookup Found: '{global_found_dept}' in '{university_info['university']}'"
+                    )
+                    validation_message = (
+                        f"\n\n⚠️ **주의**: '{dept}' 명칭으로는 '{university_info['university']}' 데이터를 찾지 못했지만, "
+                        f"관련된 **'{global_found_dept}'**가 확인되었습니다. 이 학과 정보를 찾으시는지 확인해 주세요."
+                    )
+                    # LLM에게 제안할 학과 명시
+                    suggested_majors.append(global_found_dept)
+                else:
+                    print(
+                        f"❌ Global Lookup Failed for '{dept}' in '{university_info['university']}'"
+                    )
+                    validation_message = (
+                        f"\n\n⚠️ **주의**: '{university_info['university']}' 데이터베이스에서 '{dept}' 개설 여부가 확인되지 않습니다. "
+                        "아래 링크를 통해 정확한 정보를 직접 확인해주시기 바랍니다."
+                    )
+        else:
+            print(
+                f"✅ Verified major '{dept}' exists in '{university_info['university']}'"
+            )
 
     # 성공 응답 구성
     response: Dict[str, Any] = {
@@ -1305,12 +1406,19 @@ def get_university_admission_info(
         "message": f"[{university_info['university']} 입시정보 확인하기]({university_info['url']})",
     }
 
-    # 학과명이 제공된 경우 메시지에 포함
+    # 학과명이 제공된 경우 메시지 포맷팅
     if dept:
         response["department"] = dept
-        response["message"] = (
-            f"[{university_info['university']} {dept} 입시정보 확인하기]({university_info['url']})"
-        )
+        # 검증 실패 메시지가 있으면 덧붙임
+        if validation_message:
+            response["message"] += validation_message
+            # 유사 학과가 있다면 그 학과명으로 된 구체적인 안내 멘트 추가
+            if suggested_majors:
+                response["suggested_majors"] = suggested_majors
+        else:
+            response["message"] = (
+                f"[{university_info['university']} {dept} 입시정보 확인하기]({university_info['url']})"
+            )
 
     # 안내 메시지 추가
     response["guide"] = (

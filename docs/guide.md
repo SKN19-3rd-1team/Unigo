@@ -1,6 +1,6 @@
 # Unigo 챗봇 실행 가이드
 
-**최종 업데이트**: 2025-12-08
+**최종 업데이트**: 2025-12-10
 
 이 문서는 Unigo 대학 전공 추천 챗봇을 로컬 환경에서 실행하는 방법을 안내합니다.
 
@@ -35,7 +35,7 @@ cd unigo
 
 ```bash
 # Windows
-conda create -n unigo python=3.12
+conda create -n unigo python=3.11
 conda activate unigo
 ```
 
@@ -53,7 +53,8 @@ pip install django
 - `langchain`: LLM 오케스트레이션
 - `langgraph`: 상태 기반 에이전트
 - `openai`: OpenAI API 클라이언트
-- `pinecone-client`: 벡터 DB
+- `pinecone-client`: 벡터 DB 클라이언트
+- `langchain-pinecone`: LangChain용 Pinecone 통합
 - `python-dotenv`: 환경 변수 관리
 - `django`: 웹 프레임워크
 
@@ -90,11 +91,11 @@ PROJECT_ROOT=C:\Users\user\github\frontend  # Windows
 # OpenAI
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Langchain & LangSmith (선택사항)
+# Langchain & LangSmith
 LANGCHAIN_API_KEY=your_langchain_api_key_here
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 
-# Pinecone (선택사항)
+# Pinecone
 PINECONE_API_KEY=your_pinecone_api_key_here
 ```
 
@@ -113,20 +114,38 @@ pip install python-dotenv
 
 **참고**: `requirements.txt`에 이미 포함되어 있으므로, `pip install -r requirements.txt`를 실행했다면 별도 설치가 필요 없습니다.
 
-### 5. 초기 데이터 설정 (MySQL)
+### 5. 데이터베이스 설정 (MySQL)
 
-MySQL 데이터베이스에 전공 데이터를 적재하기 위해 마이그레이션 스크립트를 실행합니다:
-
-```bash
-python scripts/migrate_to_mysql.py
-```
-
-### 6. Django 데이터베이스 마이그레이션
+프로젝트 실행을 위해 MySQL 데이터베이스 설정과 초기 데이터 적재가 필요합니다.
 
 ```bash
+# 1. Django 마이그레이션 파일 생성 (데이터베이스 변경 사항 반영)
 cd unigo
+python manage.py makemigrations
+
+# 2. Django 마이그레이션 적용 (테이블 생성)
 python manage.py migrate
+
+# 3. 초기 데이터 적재 (전공, 카테고리, 대학 정보 통합 적재)
+# 프로젝트 루트에서 실행 -> DB 테이블에 데이터 삽입
+cd ..
+python -m backend.db.seed_all
+
 ```
+
+### 6. 벡터 데이터베이스 설정 (Pinecone)
+
+RAG 시스템이 동작하려면 전공 데이터를 벡터화하여 Pinecone에 업로드해야 합니다.
+
+**참고**: 이 과정은 `OPENAI_API_KEY`와 `PINECONE_API_KEY`가 `.env`에 올바르게 설정되어 있어야 합니다.
+
+```bash
+# RAG용 Pinecone 인덱스 구축 (자동 생성 및 데이터 업로드)
+# DB에 적재된 전공 데이터를 기반으로 임베딩을 생성합니다.
+python -m backend.rag.build_major_index
+```
+
+정상적으로 완료되면 "✅ Indexing complete!" 메시지가 표시됩니다.
 
 ## 🚀 Django 서버 실행
 
@@ -207,6 +226,11 @@ http://127.0.0.1:8000/chat/
 **입시 정보 질문 예시**:
 - "서울대학교 컴퓨터공학과 정시컷 알려줘"
 - "연세대학교 수시컷이 궁금해"
+
+### 5. 채팅 관리
+
+- **새 채팅 시작**: 사이드바의 "새 채팅" 버튼을 클릭하면 대화 기록이 초기화되고 새로운 온보딩/대화를 시작할 수 있습니다.
+- **로그아웃**: 사이드바 하단의 "로그아웃" 버튼을 클릭하면 세션이 종료됩니다.
 
 ## 🔍 주요 기능
 
@@ -380,6 +404,20 @@ python manage.py runserver
 🤖 LLM Normalized Majors: ['컴퓨터공학과'] -> ['컴퓨터공학과']
 🔍 Searching for preferred major: '컴퓨터공학과'
 🎯 Set '컴퓨터공학과' score to 20.00 [Tier 1 (Exact Match)]
+```
+
+### DB 쿼리 로그 (New)
+
+`unigo/settings.py` 설정에 따라 실행되는 SQL 쿼리가 로그에 기록됩니다.
+
+```bash
+# 로그 파일 확인
+tail -f unigo/logs/unigo.log
+```
+
+로그 예시:
+```
+(0.001) SELECT ... FROM ...
 ```
 
 ### 브라우저 콘솔

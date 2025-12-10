@@ -65,6 +65,8 @@ class MajorDoc:
     text: str
     cluster: Optional[str] = None
     salary: Optional[float] = None
+    employment_rate: Optional[float] = None
+    acceptance_rate: Optional[float] = None
     relate_subject_tags: list[str] = field(default_factory=list)
     job_tags: list[str] = field(default_factory=list)
     raw_subjects: Optional[str] = None
@@ -190,7 +192,7 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
                         record = MajorRecord(
                             major_id=row.major_id,
                             major_name=row.major_name,
-                            cluster=row.cluster,
+                            cluster=None,
                             summary=row.summary or "",
                             interest=row.interest or "",
                             property=row.property or "",
@@ -270,7 +272,7 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
             record = MajorRecord(
                 major_id=major_id,
                 major_name=major_name or f"미확인 전공 {len(records) + 1}",
-                cluster=payload.get("cluster"),
+                cluster=None,
                 summary=(payload.get("summary") or "").strip(),
                 interest=(payload.get("interest") or "").strip(),
                 property=(payload.get("property") or "").strip(),
@@ -405,6 +407,10 @@ def build_major_docs(record: MajorRecord) -> list[MajorDoc]:
             text=text.strip(),
             cluster=record.cluster,
             salary=record.salary,
+            employment_rate=record.employment_rate
+            if isinstance(record.employment_rate, (int, float))
+            else None,
+            acceptance_rate=record.acceptance_rate,
             relate_subject_tags=extra.get("relate_subject_tags", []),
             job_tags=extra.get("job_tags", []),
             raw_subjects=extra.get("raw_subjects"),
