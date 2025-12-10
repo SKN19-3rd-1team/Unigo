@@ -171,3 +171,19 @@ closeBtnFindPassword.addEventListener("click", () => modalFindPassword.classList
 overlayFindPassword.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 returnLoginBtn.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 
+
+// ==========================================
+// [NEW] Hero Image Sync for Auth Page
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    const heroImg = document.querySelector(".hero-img");
+    if (heroImg) {
+        const savedChar = localStorage.getItem("user_character");
+        if (savedChar) {
+            let filename = savedChar;
+            if (savedChar === 'hedgehog') filename = 'hedgehog_ver1';
+
+            heroImg.src = `/static/images/${filename}.png`;
+        }
+    }
+});

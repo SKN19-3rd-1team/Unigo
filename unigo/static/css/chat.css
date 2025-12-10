@@ -95,27 +95,54 @@
     overflow-y: auto;
 }
 
-.bubble {
-    max-width: 540px;
-    padding: 18px 26px;
-    border-radius: 22px;
-    font-size: 18px;
-    line-height: 1.4;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+.bubble-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    max-width: 70%;
 }
 
-.bubble.user {
+.bubble-container.user {
+    margin-left: auto;
+    flex-direction: row-reverse;
+}
+
+.bubble-container.ai {
+    margin-right: auto;
+}
+
+.chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+    border: 1px solid #EBE4DA;
+    flex-shrink: 0;
+}
+
+.bubble {
+    padding: 16px 24px;
+    border-radius: 22px;
+    font-size: 16px;
+    line-height: 1.5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    word-break: break-word;
+}
+
+.bubble-container.user .bubble {
     background: #F5CADA;
     color: #4A2F42;
-    margin-left: auto;
-    border: none;
+    border-radius: 22px 4px 22px 22px;
 }
 
-.bubble.ai {
+.bubble-container.ai .bubble {
     background: #FFFFFF;
     border: 1px solid #E7DDD0;
     color: #4C433C;
-    margin-right: auto;
+    border-radius: 4px 22px 22px 22px;
 }
 
 .chat-input-row {

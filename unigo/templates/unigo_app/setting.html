@@ -15,70 +15,112 @@
             <div class="sidebar-email">{{ user.email }}</div>
         </div>
         <div class="sidebar-menu-box">
-            <div class="sidebar-btn active">계정 설정</div>
+            <div class="sidebar-btn active" data-target="section-account">계정 설정</div>
+            <!-- [NEW] 캐릭터 설정 버튼 추가 -->
+            <div class="sidebar-btn" data-target="section-character">캐릭터 설정</div>
         </div>
     </aside>
 
     <!-- Main Panel -->
+    <!-- Main Panel -->
     <div class="setting-panel">
-        <h1 class="setting-title">계정 설정</h1>
-        <p class="setting-desc">개인정보 및 보안 설정을 관리합니다.</p>
 
-        <!-- Tabs Navigation -->
-        <div class="setting-tabs">
-            <div class="tab-btn active" data-tab="nickname">닉네임 변경</div>
-            <div class="tab-btn" data-tab="password">비밀번호 변경</div>
-        </div>
+        <!-- [SECTION] Account Settings (Existing) -->
+        <section id="section-account" class="setting-section">
+            <h1 class="setting-title">계정 설정</h1>
+            <p class="setting-desc">개인정보 및 보안 설정을 관리합니다.</p>
 
-        <!-- Nickname Tab -->
-        <div class="tab-content active" id="tab-nickname">
-            <form id="form-nickname" onsubmit="return false;">
-                <div class="form-group">
-                    <label class="input-label">새 닉네임</label>
-                    <div class="input-row">
-                        <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
-                        <button type="button" class="btn-secondary" id="btn-check-duplicate">중복 확인</button>
+            <!-- Tabs Navigation -->
+            <div class="setting-tabs">
+                <div class="tab-btn active" data-tab="nickname">닉네임 변경</div>
+                <div class="tab-btn" data-tab="password">비밀번호 변경</div>
+            </div>
+
+            <!-- Nickname Tab -->
+            <div class="tab-content active" id="tab-nickname">
+                <form id="form-nickname" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="input-label">새 닉네임</label>
+                        <div class="input-row">
+                            <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
+                            <button type="button" class="btn-secondary" id="btn-check-duplicate">중복 확인</button>
+                        </div>
+                        <div class="error-msg" id="nickname-error"></div>
+                        <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
                     </div>
-                    <div class="error-msg" id="nickname-error"></div>
-                    <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
-                </div>
 
-                <div class="form-group">
-                    <label class="input-label">현재 비밀번호</label>
-                    <input type="password" class="form-input" id="nickname-password"
-                        placeholder="본인 확인을 위해 비밀번호를 입력해주세요">
-                </div>
-
-                <button type="submit" class="setting-btn-primary" id="btn-save-nickname">변경 내용 저장</button>
-            </form>
-        </div>
-
-        <!-- Password Tab -->
-        <div class="tab-content" id="tab-password">
-            <form id="form-password" onsubmit="return false;">
-                <div class="form-group">
-                    <label class="input-label">현재 비밀번호</label>
-                    <input type="password" class="form-input" id="current-password" placeholder="현재 비밀번호">
-                </div>
-
-                <div class="form-group">
-                    <label class="input-label">새 비밀번호</label>
-                    <div class="input-row">
-                        <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
-                        <button type="button" class="btn-secondary" disabled
-                            style="opacity:0; cursor:default">인증</button> <!-- Layout Spacer -->
+                    <div class="form-group">
+                        <label class="input-label">현재 비밀번호</label>
+                        <input type="password" class="form-input" id="nickname-password"
+                            placeholder="본인 확인을 위해 비밀번호를 입력해주세요">
                     </div>
+
+                    <button type="submit" class="setting-btn-primary" id="btn-save-nickname">변경 내용 저장</button>
+                </form>
+            </div>
+
+            <!-- Password Tab -->
+            <div class="tab-content" id="tab-password">
+                <form id="form-password" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="input-label">현재 비밀번호</label>
+                        <input type="password" class="form-input" id="current-password" placeholder="현재 비밀번호">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="input-label">새 비밀번호</label>
+                        <div class="input-row">
+                            <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
+                            <button type="button" class="btn-secondary" disabled
+                                style="opacity:0; cursor:default">인증</button> <!-- Layout Spacer -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="input-label">새 비밀번호 확인</label>
+                        <input type="password" class="form-input" id="new-password-confirm"
+                            placeholder="새 비밀번호를 다시 입력하세요">
+                        <div class="error-msg" id="password-match-error">비밀번호가 일치하지 않습니다.</div>
+                    </div>
+
+                    <button type="submit" class="setting-btn-primary" id="btn-save-password">변경 내용 저장</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- [SECTION] Character Settings (New) -->
+        <section id="section-character" class="setting-section" style="display: none;">
+            <h1 class="setting-title">캐릭터 설정</h1>
+            <p class="setting-desc">나를 표현할 페르소나 캐릭터를 선택하세요.</p>
+
+            <div class="carousel-scene">
+                <div class="carousel-3d" id="carousel3d">
+                    <!-- JS will populate items -->
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="control-btn" id="prevBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+
+                <div class="character-info-box" id="characterInfo">
+                    <h2 class="character-info-name" id="characterName">토끼</h2>
+                    <p class="character-info-desc" id="characterDesc">활발하고 호기심 많은 성격</p>
                 </div>
 
-                <div class="form-group">
-                    <label class="input-label">새 비밀번호 확인</label>
-                    <input type="password" class="form-input" id="new-password-confirm" placeholder="새 비밀번호를 다시 입력하세요">
-                    <div class="error-msg" id="password-match-error">비밀번호가 일치하지 않습니다.</div>
-                </div>
+                <button class="control-btn" id="nextBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
 
-                <button type="submit" class="setting-btn-primary" id="btn-save-password">변경 내용 저장</button>
-            </form>
-        </div>
+            <button class="select-button" id="selectBtn">이 캐릭터로 선택하기</button>
+        </section>
+
     </div>
 </div>
 
@@ -87,7 +129,45 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Tab Switching
+        // Sidebar Switching Logic (Account vs Character)
+        const sidebarBtns = document.querySelectorAll('.sidebar-btn');
+        const sections = document.querySelectorAll('.setting-section');
+
+        console.log("Sidebar buttons found:", sidebarBtns.length);
+
+        sidebarBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                console.log("Sidebar button clicked:", btn.textContent);
+
+                // 1. Toggle Active Class on Buttons
+                sidebarBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // 2. Toggle Section Visibility
+                const targetId = btn.getAttribute('data-target');
+                console.log("Target ID:", targetId);
+
+                sections.forEach(sec => {
+                    if (sec.id === targetId) {
+                        sec.style.display = 'block';
+                        console.log("Showing section:", sec.id);
+                    } else {
+                        sec.style.display = 'none';
+                    }
+                });
+
+                // 3. Init Carousel if needed
+                if (targetId === 'section-character') {
+                    // Slight delay to ensure visibility handles correctly
+                    setTimeout(() => {
+                        console.log("Initializing carousel...");
+                        initCarousel();
+                    }, 100);
+                }
+            });
+        });
+
+        // Tab Switching (Account Settings internal tabs)
         const tabs = document.querySelectorAll('.tab-btn');
         const contents = document.querySelectorAll('.tab-content');
 
@@ -233,6 +313,131 @@
                 alert('오류가 발생했습니다.');
             }
         });
+        // End of Tab Logic, continuing to Character Logic within the same block
+
+        // ==========================================
+        // Character Carousel Logic
+        // ==========================================
+        // [MODIFIED] Added logic for Character Selection Carousel
+
+        const characters = [
+            { name: '토끼', id: 'rabbit', image: '/static/images/rabbit.png', description: '활발하고 호기심 많은 성격으로 새로운 것을 탐험하는 것을 좋아합니다.' },
+            { name: '곰', id: 'bear', image: '/static/images/bear.png', description: '든든하고 믿음직한 성격으로 친구들을 보호하고 배려합니다.' },
+            { name: '여우', id: 'fox', image: '/static/images/fox.png', description: '영리하고 재치있는 성격으로 문제 해결 능력이 뛰어납니다.' },
+            { name: '고슴도치', id: 'hedgehog', image: '/static/images/hedgehog_ver1.png', description: '조심스럽지만 따뜻한 마음을 가진 성격으로 진정한 친구를 소중히 여깁니다.' },
+            { name: '코알라', id: 'koala', image: '/static/images/koala.png', description: '느긋하고 평화로운 성격으로 안정감을 주는 존재입니다.' },
+            { name: '수달', id: 'otter', image: '/static/images/otter.png', description: '장난기 많고 사교적인 성격으로 주변을 즐겁게 만듭니다.' },
+            { name: '펭귄', id: 'penguin', image: '/static/images/penguin.png', description: '충성스럽고 성실한 성격으로 목표를 향해 꾸준히 나아갑니다.' },
+            { name: '너구리', id: 'raccoon', image: '/static/images/raccoon.png', description: '호기심 많고 창의적인 성격으로 독특한 시각을 가지고 있습니다.' },
+            { name: '나무늘보', id: 'sloth', image: '/static/images/sloth.png', description: '여유롭고 사려 깊은 성격으로 신중하게 생각하며 행동합니다.' },
+            { name: '거북이', id: 'turtle', image: '/static/images/turtle.png', description: '인내심 있고 지혜로운 성격으로 장기적인 목표를 추구합니다.' }
+        ];
+
+        let currentIndex = 0;
+        let isCarouselInit = false;
+        const totalItems = characters.length;
+        const theta = 360 / totalItems;
+        const radius = 400;
+
+        function initCarousel() {
+            if (isCarouselInit) return;
+
+            const carousel = document.getElementById('carousel3d');
+            carousel.innerHTML = ''; // Clear
+
+            characters.forEach((character, index) => {
+                const item = document.createElement('div');
+                item.className = `carousel-item ${index === 0 ? 'active' : ''}`;
+                item.innerHTML = `<img src="${character.image}" alt="${character.name}" class="character-image">`;
+
+                const angle = theta * index;
+                item.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
+
+                item.addEventListener('click', () => {
+                    const diff = index - currentIndex;
+                    if (diff > totalItems / 2) rotateCarousel(-(totalItems - diff));
+                    else if (diff < -totalItems / 2) rotateCarousel(totalItems + diff);
+                    else rotateCarousel(diff);
+                });
+
+                carousel.appendChild(item);
+            });
+
+            // Prevent multiple inits
+            isCarouselInit = true;
+
+            // [NEW] Load current character from server
+            loadUserCharacter();
+        }
+
+        async function loadUserCharacter() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+
+                if (data.user && data.user.character) {
+                    const charId = data.user.character;
+                    // Find index
+                    const idx = characters.findIndex(c => c.id === charId);
+                    if (idx !== -1) {
+                        // Rotate to that index
+                        currentIndex = idx;
+                        rotateCarousel(0); // Just update visuals
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load character:", error);
+            }
+            updateCharacterInfo();
+        }
+
+        function rotateCarousel(direction) {
+            currentIndex = (currentIndex + direction + totalItems) % totalItems;
+
+            const carousel = document.getElementById('carousel3d');
+            const angle = -theta * currentIndex;
+            carousel.style.transform = `rotateY(${angle}deg)`;
+
+            const items = document.querySelectorAll('.carousel-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === currentIndex);
+            });
+
+            updateCharacterInfo();
+        }
+
+        function updateCharacterInfo() {
+            const character = characters[currentIndex];
+            document.getElementById('characterName').textContent = character.name;
+            document.getElementById('characterDesc').textContent = character.description;
+        }
+
+        document.getElementById('prevBtn').addEventListener('click', () => rotateCarousel(-1));
+        document.getElementById('nextBtn').addEventListener('click', () => rotateCarousel(1));
+
+        document.getElementById('selectBtn').addEventListener('click', async () => {
+            const character = characters[currentIndex];
+
+            try {
+                const response = await fetch('/api/setting/update-character', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ character: character.id })
+                });
+
+                if (response.ok) {
+                    alert(`${character.name} 캐릭터가 저장되었습니다.`);
+                    // [NEW] Save to localStorage for Auth page consistency
+                    localStorage.setItem('user_character', character.id);
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error("Error saving character:", error);
+                alert('오류가 발생했습니다.');
+            }
+        });
+
     });
 </script>
 {% endblock %}

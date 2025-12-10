@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 import uuid
 
 
@@ -299,3 +301,40 @@ class MajorUniversity(models.Model):
     
     def __str__(self):
         return f"{self.major.name} @ {self.university.name}"
+
+
+class UserProfile(models.Model):
+    """
+    사용자 추가 프로필 정보
+    
+    auth.User 모델과 1:1 연결되어 추가적인 사용자 설정(예: 캐릭터)을 저장
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    character = models.CharField(
+        max_length=50,
+        default='rabbit', # 기본값: 토끼
+        help_text="사용자가 선택한 페르소나 캐릭터 (rabbit, bear, fox, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.user.username}'s Profile ({self.character})"
+
+# Signal Receivers to automatically create/update UserProfile
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    # 인스턴스 저장 시 프로필도 함께 저장 (혹시 없을 경우 생성 방지 로직은 위에서 처리됨)
+    # 다만, admin 등에서 프로필이 실수로 지워졌을 때를 대비해 get_or_create를 쓸 수도 있으나,
+    # 여기서는 표준적인 방식인 save 호출만 수행.
+    if hasattr(instance, 'profile'):
+        instance.profile.save()

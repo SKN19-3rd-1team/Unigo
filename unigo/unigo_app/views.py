@@ -189,6 +189,8 @@ def auth_me(request):
                     "id": request.user.id,
                     "username": request.user.username,
                     "email": request.user.email,
+                    # [NEW] Return character info
+                    "character": request.user.profile.character if hasattr(request.user, 'profile') else 'rabbit'
                 },
             }
         )
@@ -339,6 +341,34 @@ def change_password(request):
         update_session_auth_hash(request, user)
 
         return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def update_character(request):
+    """캐릭터 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        character = data.get("character")
+
+        if not character:
+            return JsonResponse({"error": "Character required"}, status=400)
+
+        # 프로필 가져오기 (없으면 생성)
+        # models.py의 signal이 있어서 대부분 있지만 안전하게 처리
+        from .models import UserProfile
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        
+        profile.character = character
+        profile.save()
+
+        return JsonResponse({"message": f"Character updated to {character}"})
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
