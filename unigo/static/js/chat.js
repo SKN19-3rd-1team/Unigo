@@ -46,20 +46,50 @@ let onboardingState = {
 
 // -- Initialization --
 
-const init = () => {
-    loadState();
+const init = async () => {
+    await loadState();
     detectReloadAndReset(); // Reset on full reload if needed, or keep persistence
     renderHistory();
     restoreResultPanel(); // Restore right panel state
 
     if (!onboardingState.isComplete) {
-        // Start or continue onboarding
-        startOnboardingStep();
+        if (chatHistory.length > 0) {
+            // 이미 대화 기록이 있으면 온보딩 건너뛰기
+            console.log("Existing history found, skipping onboarding.");
+            onboardingState.isComplete = true;
+            saveState();
+
+            // "다시 만나서 반갑습니다!" 메시지가 이미 있는지 확인 (중복 방지)
+            const lastMsg = chatHistory[chatHistory.length - 1];
+            if (!lastMsg || lastMsg.content !== "다시 만나서 반갑습니다!") {
+                await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', true, 20);
+            }
+        } else {
+            // Start or continue onboarding
+            startOnboardingStep();
+        }
+    } else {
+        // 온보딩 완료 상태라면 Placeholder 업데이트
+        if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
     }
 };
 
-const loadState = () => {
-    // Load Chat History
+const loadState = async () => {
+    // 1. Check Authentication & Fetch History from Server
+    try {
+        const authResponse = await fetch('/api/auth/me');
+        const authData = await authResponse.json();
+
+        if (authData.is_authenticated) {
+            console.log("User is authenticated. Fetching server history...");
+            await fetchHistory();
+            return; // Skip loading from local storage if logged in
+        }
+    } catch (e) {
+        console.error("Auth check failed:", e);
+    }
+
+    // 2. Fallback: Load Chat History from SessionStorage (Guest)
     try {
         const storedHistory = sessionStorage.getItem(STORAGE_KEY_HISTORY);
         if (storedHistory) chatHistory = JSON.parse(storedHistory);
@@ -73,6 +103,25 @@ const loadState = () => {
         }
     } catch {
         // Default state
+    }
+};
+
+const fetchHistory = async () => {
+    try {
+        const response = await fetch('/api/chat/history');
+        if (!response.ok) throw new Error('Failed to fetch history');
+
+        const data = await response.json();
+        if (data.history && Array.isArray(data.history)) {
+            // Server history format match: { role, content, ... }
+            chatHistory = data.history.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
+            renderHistory();
+        }
+    } catch (e) {
+        console.error("Error fetching history:", e);
     }
 };
 
@@ -356,7 +405,48 @@ const handleSubmit = async () => {
     chatInput.focus();
 };
 
+const resetChat = async () => {
+    if (!confirm("대화 내용을 모두 지우고 처음부터 다시 시작하시겠습니까?")) return;
+
+    // 1. Backend Reset (If logged in)
+    try {
+        await fetch('/api/chat/reset', { method: 'POST' });
+    } catch (e) {
+        console.error("Reset API check failed (might be guest):", e);
+    }
+
+    // 2. Clear Local State
+    chatHistory = [];
+    onboardingState = {
+        isComplete: false,
+        step: 0,
+        answers: {}
+    };
+    saveState();
+    sessionStorage.removeItem(STORAGE_KEY_HISTORY);
+    sessionStorage.removeItem(STORAGE_KEY_ONBOARDING);
+    sessionStorage.removeItem(STORAGE_KEY_RESULT_PANEL);
+
+    // 3. UI Reset
+    if (chatCanvas) chatCanvas.innerHTML = '';
+    const resultCard = document.querySelector('.result-card');
+    if (resultCard) resultCard.innerHTML = `
+        제가 당신에게 추천드리는 학과들로는 생명공학, 컴퓨터공학, AI융합전공, 데이터사이언스과, 소프트웨어공학과 등이 있으며 추가적으로 물리학과, 천문학 등도 고려하실 수 있습니다.
+        <br><br>
+        이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
+    `;
+
+    // 4. Restart Onboarding
+    startOnboardingStep();
+};
+
 // -- Event Listeners --
+
+// New Chat Button (using aria-label="새 채팅")
+const newChatBtn = document.querySelector('.action-btn[aria-label="새 채팅"]');
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', resetChat);
+}
 
 if (sendBtn) {
     sendBtn.addEventListener('click', handleSubmit);
