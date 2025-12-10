@@ -38,6 +38,7 @@ const ONBOARDING_QUESTIONS = [
 ];
 
 let chatHistory = [];
+let currentConversationId = null; // 현재 Conversation ID (로그인 사용자용)
 let onboardingState = {
     isComplete: false,
     step: 0,
@@ -363,14 +364,20 @@ const handleChatInput = async (text) => {
         // 백엔드로 보낼 때는 이를 제외하고 보냅니다. (백엔드에서 현재 질문을 별도 파라미터로 받기 때문)
 
         const historyToSend = chatHistory.slice(0, -1);
+        const requestBody = {
+            message: text,
+            history: historyToSend
+        };
+
+        // 로그인 사용자의 경우 현재 대화 ID를 함께 전송
+        if (currentConversationId) {
+            requestBody.conversation_id = currentConversationId;
+        }
 
         const response = await fetch(API_CHAT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: text,
-                history: historyToSend
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) throw new Error('Network error');
@@ -378,6 +385,12 @@ const handleChatInput = async (text) => {
         const data = await response.json();
 
         if (loadingBubble) loadingBubble.remove();
+
+        // 로그인 사용자의 경우 첫 성공 응답에서 conversation_id 업데이트
+        if (data.conversation_id && !currentConversationId) {
+            currentConversationId = data.conversation_id;
+            console.log('Conversation started with ID:', currentConversationId);
+        }
 
         // Use typing effect for AI responses
         await appendBubbleWithTyping(data.response, 'ai', true, 15);
@@ -408,15 +421,43 @@ const handleSubmit = async () => {
 const resetChat = async () => {
     if (!confirm("대화 내용을 모두 지우고 처음부터 다시 시작하시겠습니까?")) return;
 
-    // 1. Backend Reset (If logged in)
+    // 1. 로그인 사용자에 한해 현재 채팅 내용을 DB에 저장 (새 채팅 생성 전)
+    if (chatHistory.length > 0) {
+        try {
+            const authRes = await fetch('/api/auth/me');
+            const authData = await authRes.json();
+
+            if (authData && authData.is_authenticated) {
+                const saveResponse = await fetch('/api/chat/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: chatHistory })
+                });
+
+                if (saveResponse.ok) {
+                    const saveData = await saveResponse.json();
+                    console.log('Chat history saved for user:', saveData);
+                } else {
+                    console.error('Failed to save chat history (server)');
+                }
+            } else {
+                console.log('Guest user — skipping server save.');
+            }
+        } catch (e) {
+            console.error('Error checking auth or saving chat history:', e);
+        }
+    }
+
+    // 2. Backend Reset (If logged in)
     try {
         await fetch('/api/chat/reset', { method: 'POST' });
     } catch (e) {
         console.error("Reset API check failed (might be guest):", e);
     }
 
-    // 2. Clear Local State
+    // 3. Clear Local State
     chatHistory = [];
+    currentConversationId = null; // Reset conversation ID for new chat
     onboardingState = {
         isComplete: false,
         step: 0,
@@ -427,7 +468,7 @@ const resetChat = async () => {
     sessionStorage.removeItem(STORAGE_KEY_ONBOARDING);
     sessionStorage.removeItem(STORAGE_KEY_RESULT_PANEL);
 
-    // 3. UI Reset
+    // 4. UI Reset
     if (chatCanvas) chatCanvas.innerHTML = '';
     const resultCard = document.querySelector('.result-card');
     if (resultCard) resultCard.innerHTML = `
@@ -436,7 +477,7 @@ const resetChat = async () => {
         이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
     `;
 
-    // 4. Restart Onboarding
+    // 5. Restart Onboarding
     startOnboardingStep();
 };
 
@@ -446,6 +487,114 @@ const resetChat = async () => {
 const newChatBtn = document.querySelector('.action-btn[aria-label="새 채팅"]');
 if (newChatBtn) {
     newChatBtn.addEventListener('click', resetChat);
+}
+
+// Folder / History Button (using aria-label="폴더")
+const folderBtn = document.querySelector('.action-btn[aria-label="폴더"]');
+const showConversationList = async () => {
+    const resultCard = document.querySelector('.result-card');
+    if (!resultCard) return;
+
+    // 로그인 사용자에 한해 대화 목록 가져오기
+    try {
+        const resp = await fetch('/api/chat/list');
+        if (!resp.ok) throw new Error('Failed to fetch conversations');
+
+        const data = await resp.json();
+        const convs = data.conversations || [];
+
+        if (convs.length === 0) {
+            resultCard.innerHTML = '<p>저장된 과거 대화가 없습니다.</p>';
+            return;
+        }
+
+        // 목록 HTML 생성
+        let html = '<div class="conv-list"><h3>과거 대화 목록</h3><ul style="list-style:none;padding:0;">';
+        convs.forEach(c => {
+            html += `<li style="padding:8px 6px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${c.id}">`;
+            html += `<strong>${c.title || '(제목 없음)'}</strong><br>`;
+            html += `<small style="color:#666">${c.updated_at.split('T')[0]} · ${c.message_count} messages</small><br>`;
+            html += `<span style="color:#333">${c.last_message_preview || ''}</span>`;
+            html += `</li>`;
+        });
+        html += '</ul><button id="conv-back-btn" style="margin-top:8px;">뒤로</button></div>';
+
+        resultCard.innerHTML = html;
+
+        // 각 대화 항목에 클릭 리스너 추가
+        const items = resultCard.querySelectorAll('li[data-id]');
+        items.forEach(it => {
+            it.addEventListener('click', async (e) => {
+                const convId = it.getAttribute('data-id');
+                await loadConversation(convId);
+            });
+        });
+
+        const backBtn = document.getElementById('conv-back-btn');
+        if (backBtn) backBtn.addEventListener('click', () => restoreResultPanel());
+
+    } catch (e) {
+        console.error('Error loading conversation list:', e);
+    }
+};
+
+const loadConversation = async (convId) => {
+    if (!convId) return;
+
+    // 충돌 처리: 현재 세션에 내용이 있으면 사용자에게 확인
+    if (chatHistory.length > 0) {
+        const saveConfirm = confirm('현재 대화가 있습니다. 서버에 저장한 후 불러오시겠습니까? (확인: 저장 후 불러오기 / 취소: 저장하지 않고 불러오기)');
+        if (saveConfirm) {
+            try {
+                const saveResp = await fetch('/api/chat/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: chatHistory })
+                });
+                if (!saveResp.ok) console.error('Failed to save current conversation before loading');
+            } catch (e) {
+                console.error('Error saving before load:', e);
+            }
+        } else {
+            const discardConfirm = confirm('저장하지 않고 불러오시겠습니까? (확인: 불러오기 / 취소: 취소)');
+            if (!discardConfirm) return; // 사용자 취소
+        }
+    }
+
+    try {
+        const resp = await fetch(`/api/chat/load?conversation_id=${encodeURIComponent(convId)}`);
+        if (!resp.ok) throw new Error('Failed to load conversation');
+
+        const data = await resp.json();
+        const conv = data.conversation;
+        if (!conv) throw new Error('Invalid conversation data');
+
+        // 현재 대화 기록 교체 및 렌더링
+        chatHistory = conv.messages.map(m => ({ role: m.role, content: m.content }));
+        currentConversationId = conv.id; // 과거 대화 불러올 때 대화 ID 업데이트
+        saveState();
+        renderHistory();
+
+        // 온보딩 상태 업데이트: 완료로 표시하여 온보딩 프롬프트 방지
+        onboardingState.isComplete = true;
+        saveState();
+
+        // 오른쪽 패널을 불러온 세션 제목으로 업데이트
+        const resultCard = document.querySelector('.result-card');
+        if (resultCard) resultCard.innerHTML = `<h3>불러온 대화: ${conv.title}</h3><p>${conv.messages.length}개의 메시지를 불러왔습니다.</p><button id="conv-back-btn2">뒤로</button>`;
+        const backBtn = document.getElementById('conv-back-btn2');
+        if (backBtn) backBtn.addEventListener('click', () => restoreResultPanel());
+
+        console.log('Conversation loaded with ID:', currentConversationId);
+
+    } catch (e) {
+        console.error('Error loading conversation:', e);
+        alert('세션 불러오기에 실패했습니다. 콘솔을 확인하세요.');
+    }
+};
+
+if (folderBtn) {
+    folderBtn.addEventListener('click', showConversationList);
 }
 
 if (sendBtn) {

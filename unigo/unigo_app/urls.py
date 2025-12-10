@@ -26,6 +26,9 @@ urlpatterns = [
     # Feature API
     path("api/chat", views.chat_api, name="chat_api"),
     path("api/chat/history", views.chat_history, name="chat_history"),
+    path("api/chat/save", views.save_chat_history, name="save_chat_history"),
+    path("api/chat/list", views.list_conversations, name="list_conversations"),
+    path("api/chat/load", views.load_conversation, name="load_conversation"),
     path("api/chat/reset", views.reset_chat_history, name="reset_chat_history"),
     path("api/onboarding", views.onboarding_api, name="onboarding_api"),
 ]
