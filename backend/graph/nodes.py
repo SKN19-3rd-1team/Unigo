@@ -283,12 +283,10 @@ def recommend_majors_node(state: MentorState) -> dict:
                 search_targets = preferred_list
 
             # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
+            # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
             from backend.rag.tools import (
                 _find_majors,
-                _ensure_major_records,
             )
-
-            _ensure_major_records()
 
             # SearchHit 임포트 (함수 내 로컬 임포트)
             from backend.rag.retriever import SearchHit
