@@ -11,7 +11,6 @@ class Major(Base):
     major_name = Column(String(255), index=True, nullable=False)
 
     # Text fields
-    cluster = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
     interest = Column(Text, nullable=True)
     property = Column(Text, nullable=True)

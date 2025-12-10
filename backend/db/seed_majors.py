@@ -116,7 +116,6 @@ def preprocess_item(raw_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "major_id": major_id,
         "major_name": major_name,
         # 텍스트/HTML 필드
-        "cluster": None,  # 원본 소스에 없음
         "summary": data.get("summary"),
         "interest": data.get("interest"),
         "property": data.get("property"),

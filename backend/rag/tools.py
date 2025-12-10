@@ -279,7 +279,6 @@ def _convert_db_model_to_record(row: Major) -> Any:
     return MajorRecord(
         major_id=row.major_id,
         major_name=row.major_name,
-        cluster=row.cluster,
         summary=row.summary or "",
         interest=row.interest or "",
         property=row.property or "",
