@@ -4,6 +4,7 @@ const chatCanvas = document.querySelector('.chat-canvas');
 
 const STORAGE_KEY_HISTORY = 'unigo.app.chatHistory';
 const STORAGE_KEY_ONBOARDING = 'unigo.app.onboarding';
+const STORAGE_KEY_CONVERSATION_ID = 'unigo.app.currentConversationId';
 const STORAGE_KEY_RESULT_PANEL = 'unigo.app.resultPanel';
 
 const API_CHAT_URL = '/api/chat';
@@ -95,10 +96,21 @@ const loadState = async () => {
 
         if (authData.is_authenticated) {
             console.log("User is authenticated. Initializing fresh chat session...");
-            
-            // 로그인 사용자는 새로운 대화 세션으로 시작
-            currentConversationId = null;
-            
+
+            // 로그인 사용자는 기본적으로 새로운 대화 세션으로 시작
+            // 단, 이전에 불러온 conversation id가 sessionStorage에 있으면 복원
+            try {
+                const storedConvId = sessionStorage.getItem(STORAGE_KEY_CONVERSATION_ID);
+                if (storedConvId) {
+                    currentConversationId = storedConvId;
+                    console.log('Restored conversation id from sessionStorage:', currentConversationId);
+                } else {
+                    currentConversationId = null;
+                }
+            } catch (e) {
+                currentConversationId = null;
+            }
+
             // 클라이언트 세션 상태도 초기화 (온보딩은 완료 상태로 유지)
             chatHistory = [];
             onboardingState = {
@@ -154,6 +166,12 @@ const fetchHistory = async () => {
 const saveState = () => {
     sessionStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(chatHistory));
     sessionStorage.setItem(STORAGE_KEY_ONBOARDING, JSON.stringify(onboardingState));
+    try {
+        if (currentConversationId) sessionStorage.setItem(STORAGE_KEY_CONVERSATION_ID, String(currentConversationId));
+        else sessionStorage.removeItem(STORAGE_KEY_CONVERSATION_ID);
+    } catch (e) {
+        console.warn('Failed to save conversation id to sessionStorage', e);
+    }
 };
 
 const detectReloadAndReset = () => {
@@ -492,6 +510,7 @@ const resetChat = async () => {
     sessionStorage.removeItem(STORAGE_KEY_HISTORY);
     sessionStorage.removeItem(STORAGE_KEY_ONBOARDING);
     sessionStorage.removeItem(STORAGE_KEY_RESULT_PANEL);
+    sessionStorage.removeItem(STORAGE_KEY_CONVERSATION_ID);
 
     // 4. UI Reset
     if (chatCanvas) chatCanvas.innerHTML = '';
