@@ -16,6 +16,12 @@ urlpatterns = [
     path("api/auth/logout", views.auth_logout, name="auth_logout"),
     path("api/auth/me", views.auth_me, name="auth_me"),
 
+    # Setting API
+    path("api/setting/check-username", views.check_username, name="check_username"),
+    path("api/setting/change-nickname", views.change_nickname, name="change_nickname"),
+    path("api/setting/change-password", views.change_password, name="change_password"),
+    path("api/setting/delete", views.delete_account, name="delete_account"),
+    
     # Feature API
     path("api/chat", views.chat_api, name="chat_api"),
     path("api/onboarding", views.onboarding_api, name="onboarding_api"),

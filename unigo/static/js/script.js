@@ -171,3 +171,6 @@ closeBtnFindPassword.addEventListener("click", () => modalFindPassword.classList
 overlayFindPassword.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 returnLoginBtn.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 
+
+
+const deleteAccountBtn = document.getElementById("btn-delete-account");
