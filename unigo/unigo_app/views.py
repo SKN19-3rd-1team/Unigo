@@ -175,8 +175,11 @@ def logout_view(request):
     """
     로그아웃 뷰 (GET 요청 처리 및 리다이렉트)
     """
+    # 로그아웃 처리 후 클라이언트 세션 스토리지를 정리할 수 있도록
+    # 로그아웃 완료 페이지를 렌더링하여 브라우저에서 sessionStorage를 초기화하고
+    # 클라이언트를 인증 페이지로 리다이렉트하게 한다.
     logout(request)
-    return redirect("unigo_app:auth")
+    return render(request, "unigo_app/logout.html")
 
 
 def auth_me(request):
