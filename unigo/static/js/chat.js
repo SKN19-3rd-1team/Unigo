@@ -72,18 +72,42 @@ const init = async () => {
     } else {
         // 온보딩 완료 상태라면 Placeholder 업데이트
         if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
+        
+        // 로그인 사용자는 환영 메시지를 표시 (채팅 기록이 비어 있을 때만)
+        try {
+            const authResponse = await fetch('/api/auth/me');
+            const authData = await authResponse.json();
+            
+            if (authData.is_authenticated && chatHistory.length === 0) {
+                await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', false, 20);
+            }
+        } catch (e) {
+            console.error("Auth check in init failed:", e);
+        }
     }
 };
 
 const loadState = async () => {
-    // 1. Check Authentication & Fetch History from Server
+    // 1. 로그인된 사용자 확인
     try {
         const authResponse = await fetch('/api/auth/me');
         const authData = await authResponse.json();
 
         if (authData.is_authenticated) {
-            console.log("User is authenticated. Fetching server history...");
-            await fetchHistory();
+            console.log("User is authenticated. Initializing fresh chat session...");
+            
+            // 로그인 사용자는 새로운 대화 세션으로 시작
+            currentConversationId = null;
+            
+            // 클라이언트 세션 상태도 초기화 (온보딩은 완료 상태로 유지)
+            chatHistory = [];
+            onboardingState = {
+                isComplete: true,  // 이미 온보딩을 완료한 사용자로 간주
+                step: 0,
+                answers: {}
+            };
+            saveState();
+            
             return; // Skip loading from local storage if logged in
         }
     } catch (e) {
@@ -108,6 +132,9 @@ const loadState = async () => {
 };
 
 const fetchHistory = async () => {
+    // 로그인 사용자의 최근 대화 목록을 조회 (참고용)
+    // 이 함수는 현재 대화 화면에는 영향을 주지 않고, 
+    // 사용자가 이전 대화를 확인하고 싶을 때 "폴더" 버튼을 통해 호출됨
     try {
         const response = await fetch('/api/chat/history');
         if (!response.ok) throw new Error('Failed to fetch history');
@@ -115,11 +142,9 @@ const fetchHistory = async () => {
         const data = await response.json();
         if (data.history && Array.isArray(data.history)) {
             // Server history format match: { role, content, ... }
-            chatHistory = data.history.map(msg => ({
-                role: msg.role,
-                content: msg.content
-            }));
-            renderHistory();
+            // NOTE: 이 함수는 대화 화면을 업데이트하지 않음.
+            // 필요한 경우에만 폴더 버튼 등에서 호출되어 이전 대화를 복원함
+            console.log("Fetched server history (for reference):", data.history);
         }
     } catch (e) {
         console.error("Error fetching history:", e);
