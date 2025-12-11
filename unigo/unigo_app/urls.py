@@ -10,6 +10,7 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("chat/", views.chat, name="chat"),
     path("setting/", views.setting, name="setting"),
+    path("setting/character/", views.character_select, name="character_select"),
     # Auth API
     path("api/auth/signup", views.auth_signup, name="auth_signup"),
     path("api/auth/login", views.auth_login, name="auth_login"),

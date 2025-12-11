@@ -48,7 +48,23 @@ def auth(request):
 
 def chat(request):
     """채팅 페이지 렌더링"""
-    return render(request, "unigo_app/chat.html")
+    context = {}
+    if request.user.is_authenticated:
+        # UserProfile에서 캐릭터 가져오기
+        try:
+            character = request.user.profile.character
+        except Exception:
+            character = 'rabbit'
+        
+        # 이미지 파일명 매핑 (js/chat.js 로직과 동일하게)
+        filename = character
+        if character == 'hedgehog':
+            filename = 'hedgehog_ver1'
+            
+        context['character_code'] = character
+        context['character_image'] = filename
+        
+    return render(request, "unigo_app/chat.html", context)
 
 
 def setting(request):
@@ -56,6 +72,13 @@ def setting(request):
     if not request.user.is_authenticated:
         return redirect("unigo_app:auth")
     return render(request, "unigo_app/setting.html")
+
+
+def character_select(request):
+    """캐릭터 선택 페이지 렌더링"""
+    if not request.user.is_authenticated:
+        return redirect("unigo_app:auth")
+    return render(request, "unigo_app/character_select.html")
 
 
 def home(request):

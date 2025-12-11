@@ -173,17 +173,17 @@ returnLoginBtn.addEventListener("click", () => modalFindPassword.classList.remov
 
 
 // ==========================================
-// [NEW] Hero Image Sync for Auth Page
+// [REMOVED] Hero Image Sync for Auth Page
+// (User requested to always show Rabbit on login page)
+// ==========================================
+// ==========================================
+// [FIX] Hero Image Force Rabbit
+// Always show Rabbit on Auth page, ignoring localStorage
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
     const heroImg = document.querySelector(".hero-img");
     if (heroImg) {
-        const savedChar = localStorage.getItem("user_character");
-        if (savedChar) {
-            let filename = savedChar;
-            if (savedChar === 'hedgehog') filename = 'hedgehog_ver1';
-
-            heroImg.src = `/static/images/${filename}.png`;
-        }
+        // Force reset to Rabbit in case some other script tried to change it
+        heroImg.src = "/static/images/rabbit.png";
     }
 });

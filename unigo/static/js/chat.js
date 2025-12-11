@@ -155,11 +155,13 @@ const detectReloadAndReset = () => {
 
 // Helper to get avatar URL
 const getAvatarUrl = (type) => {
-    if (type === 'ai') return '/static/images/profile_logo.png'; // Default AI logo
+    // Use the user's selected character for both AI (Persona) and User avatar
+    // Check window.USER_CHARACTER first (server injected), then localStorage
+    const savedChar = (window.USER_CHARACTER && window.USER_CHARACTER !== 'None')
+        ? window.USER_CHARACTER
+        : localStorage.getItem('user_character');
 
-    // For user, check localStorage (synced from DB) or default
-    const savedChar = localStorage.getItem('user_character');
-    let filename = savedChar || 'rabbit';
+    let filename = savedChar || 'rabbit'; // Default to rabbit
     if (filename === 'hedgehog') filename = 'hedgehog_ver1';
 
     return `/static/images/${filename}.png`;
