@@ -10,6 +10,7 @@ from __future__ import annotations
 # backend/rag/loader.py
 import json
 import re
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Sequence
@@ -73,10 +74,35 @@ class MajorDoc:
     raw_jobs: Optional[str] = None
 
 
+@dataclass
+class UniversityMajorDoc:
+    """
+    대학별 구체적 학과 정보를 Pinecone에 인덱싱하기 위한 문서 구조.
+    Namespace: university_majors
+    """
+
+    doc_id: str
+    major_id: str
+    university: str
+    department: str
+    major_name: str  # 표준 학과명 (대분류)
+    text: str  # 검색용 텍스트 (예: "연세대학교 인공지능융합대학")
+
+
 def _slugify(value: str) -> str:
     # 전공명을 Pinecone 문서 ID로 활용하기 위해 안전한 슬러그 형태로 변환
+    # Pinecone Serverless는 ASCII ID만 지원함.
+    # 영문/숫자는 보존하고, 한글 등은 해시로 변환.
+
+    # 1. 시도: ASCII 변환
     slug = re.sub(r"[^0-9a-zA-Z]+", "-", value.strip().lower())
     slug = slug.strip("-")
+
+    # 2. 식별 불가능할 정도로 짧으면 해시 사용 (예: 순수 한글 문자열)
+    if len(slug) < 2:
+        m = hashlib.md5(value.encode("utf-8"))
+        return f"id-{m.hexdigest()}"
+
     return slug
 
 
@@ -207,7 +233,9 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
                             career_act=row.career_act,
                             qualifications=row.qualifications,
                             main_subject=row.main_subject,
-                            university=row.university,
+                            university=json.loads(row.university)
+                            if row.university
+                            else [],
                             chart_data=row.chart_data,
                             raw=row.raw_data or {},
                             gender=None,  # DB 컬럼에 없으면 none 또는 추가 필요
@@ -476,4 +504,50 @@ def build_all_major_docs(records: list[MajorRecord]) -> list[MajorDoc]:
     docs: list[MajorDoc] = []
     for record in records:
         docs.extend(build_major_docs(record))
+    return docs
+
+
+def build_university_major_docs(record: MajorRecord) -> list[UniversityMajorDoc]:
+    """
+    전공 레코드에서 대학-학과 쌍을 추출하여 UniversityMajorDoc 리스트를 생성한다.
+    """
+    docs: list[UniversityMajorDoc] = []
+
+    if not isinstance(record.university, list):
+        return docs
+
+    seen = set()
+
+    for item in record.university:
+        if not isinstance(item, dict):
+            continue
+
+        school = (item.get("schoolName") or "").strip()
+        major_name = (item.get("majorName") or "").strip()
+
+        # 대학명이 없거나, 학과명이 없는 경우 스킵 (엄격한 매핑을 위해)
+        if not school or not major_name:
+            continue
+
+        # 고유 ID 생성 (대학명+학과명)
+        doc_id = _slugify(f"{school}-{major_name}")
+
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+
+        # 검색용 텍스트 생성: "{대학명} {학과명}"
+        text = f"{school} {major_name}"
+
+        docs.append(
+            UniversityMajorDoc(
+                doc_id=doc_id,
+                major_id=record.major_id,
+                university=school,
+                department=major_name,
+                major_name=record.major_name,
+                text=text,
+            )
+        )
+
     return docs
