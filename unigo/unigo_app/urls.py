@@ -23,6 +23,8 @@ urlpatterns = [
     path("api/setting/check-username", views.check_username, name="check_username"),
     path("api/setting/change-nickname", views.change_nickname, name="change_nickname"),
     path("api/setting/change-password", views.change_password, name="change_password"),
+    path("api/setting/delete", views.delete_account, name="delete_account"),
+    
     # Feature API
     path("api/chat", views.chat_api, name="chat_api"),
     path("api/chat/history", views.chat_history, name="chat_history"),

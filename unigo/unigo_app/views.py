@@ -345,6 +345,157 @@ def change_password(request):
 
 
 # ============================================
+# Setting API
+# ============================================
+
+
+@csrf_exempt
+def delete_account(request):
+    """
+    계정탈퇴 API
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+        password = data.get("password")
+        email = data.get("email", "")
+
+        # required fields 작성 여부 확인
+        if not username or not password:
+            return JsonResponse({"error": "Username and password required"}, status=400)
+
+        # 사용자 존재 여부 확인
+        try:
+            target_user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Username doesn't exist"}, status=400)
+        
+        # 현재 비밀번호 검증
+        user = authenticate(
+            request, username=request.user.username, password=password
+        )
+        if user is None:
+            return JsonResponse({"error": "현재 비밀번호가 일치하지 않습니다."}, status=400)
+        
+        # 로그아웃
+        logout(request)
+
+        # 계정 삭제
+        user.delete()
+
+        # 삭제 성공
+        return JsonResponse(
+            {
+                "message": "Deletion successful",
+                "user": {"id": user.id, "username": user.username},
+            }
+        )
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+#---------------------------------------------------------------------------------
+
+@csrf_exempt
+@login_required
+def check_username(request):
+    """닉네임 중복 확인 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": "Username required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse(
+                {"exists": True, "message": "이미 사용 중인 닉네임입니다."}
+            )
+
+        return JsonResponse({"exists": False, "message": "사용 가능한 닉네임입니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_nickname(request):
+    """닉네임 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        new_username = data.get("username")
+        password = data.get("password")
+
+        if not new_username or not password:
+            return JsonResponse({"error": "Username and password required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(request, username=request.user.username, password=password)
+        if user is None:
+            return JsonResponse({"error": "비밀번호가 일치하지 않습니다."}, status=400)
+
+        # 중복 확인
+        if User.objects.filter(username=new_username).exists():
+            return JsonResponse({"error": "이미 사용 중인 닉네임입니다."}, status=400)
+
+        # 닉네임 변경
+        user.username = new_username
+        user.save()
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_password(request):
+    """비밀번호 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+
+        if not current_password or not new_password:
+            return JsonResponse({"error": "All fields required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(
+            request, username=request.user.username, password=current_password
+        )
+        if user is None:
+            return JsonResponse(
+                {"error": "현재 비밀번호가 일치하지 않습니다."}, status=400
+            )
+
+        # 비밀번호 변경
+        user.set_password(new_password)
+        user.save()
+
+        # 세션 유지
+        update_session_auth_hash(request, user)
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ============================================
 # Chat & Feature API
 # ============================================
 
