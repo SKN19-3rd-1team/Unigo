@@ -108,7 +108,6 @@ def auth_signup(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-
 @csrf_exempt
 def auth_login(request):
     """
@@ -172,6 +171,14 @@ def auth_logout(request):
     return JsonResponse({"message": "Logout successful"})
 
 
+def logout_view(request):
+    """
+    로그아웃 뷰 (GET 요청 처리 및 리다이렉트)
+    """
+    logout(request)
+    return redirect("unigo_app:auth")
+
+
 def auth_me(request):
     """현재 사용자 정보 조회 API"""
     if request.user.is_authenticated:
@@ -186,6 +193,155 @@ def auth_me(request):
             }
         )
     return JsonResponse({"is_authenticated": False})
+
+
+@csrf_exempt
+def auth_check_email(request):
+    """이메일 중복 확인 API (Public)"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+
+        if not email:
+            return JsonResponse({"error": "Email required"}, status=400)
+
+        if User.objects.filter(email=email).exists():
+            return JsonResponse(
+                {"exists": True, "message": "중복 이메일이 존재합니다."}
+            )
+
+        return JsonResponse({"exists": False, "message": "사용 가능한 이메일입니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def auth_check_username(request):
+    """아이디(닉네임) 중복 확인 API (Public)"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": "Username required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse(
+                {"exists": True, "message": "중복 닉네임이 존재합니다."}
+            )
+
+        return JsonResponse({"exists": False, "message": "사용 가능한 닉네임입니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ============================================
+# Setting API
+# ============================================
+
+
+@csrf_exempt
+@login_required
+def check_username(request):
+    """닉네임 중복 확인 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": "Username required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse(
+                {"exists": True, "message": "이미 사용 중인 닉네임입니다."}
+            )
+
+        return JsonResponse({"exists": False, "message": "사용 가능한 닉네임입니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_nickname(request):
+    """닉네임 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        new_username = data.get("username")
+        password = data.get("password")
+
+        if not new_username or not password:
+            return JsonResponse({"error": "Username and password required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(request, username=request.user.username, password=password)
+        if user is None:
+            return JsonResponse({"error": "비밀번호가 일치하지 않습니다."}, status=400)
+
+        # 중복 확인
+        if User.objects.filter(username=new_username).exists():
+            return JsonResponse({"error": "이미 사용 중인 닉네임입니다."}, status=400)
+
+        # 닉네임 변경
+        user.username = new_username
+        user.save()
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def change_password(request):
+    """비밀번호 변경 API"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+
+        if not current_password or not new_password:
+            return JsonResponse({"error": "All fields required"}, status=400)
+
+        # 현재 비밀번호 검증
+        user = authenticate(
+            request, username=request.user.username, password=current_password
+        )
+        if user is None:
+            return JsonResponse(
+                {"error": "현재 비밀번호가 일치하지 않습니다."}, status=400
+            )
+
+        # 비밀번호 변경
+        user.set_password(new_password)
+        user.save()
+
+        # 세션 유지
+        update_session_auth_hash(request, user)
+
+        return JsonResponse({"message": "내용이 변경되었습니다."})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # ============================================
@@ -437,6 +593,79 @@ def chat_api(request):
 
     except Exception as e:
         logger.error(f"Error in chat_api: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def chat_history(request):
+    """
+    사용자 대화 기록 조회 API
+    """
+    try:
+        # 최근 대화 세션 가져오기
+        conversation = (
+            Conversation.objects.filter(user=request.user)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        if not conversation:
+            return JsonResponse({"history": []})
+
+        # 메시지 조회 (최근 순으로 가져와서 다시 시간순 정렬할 수도 있지만,
+        # 여기서는 전체 대화 흐름이 중요하므로 생성일 오름차순으로 가져옴)
+        # 너무 많으면 최근 N개만 가져오도록 제한 가능 (예: 50개)
+        messages = conversation.messages.order_by("created_at")
+
+        history_data = [
+            {
+                "role": msg.role,
+                "content": msg.content,
+                "created_at": msg.created_at.isoformat(),
+            }
+            for msg in messages
+        ]
+
+        return JsonResponse({"history": history_data})
+
+    except Exception as e:
+        logger.error(f"Error in chat_history: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+    except Exception as e:
+        logger.error(f"Error in chat_history: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def reset_chat_history(request):
+    """
+    사용자 대화 기록 초기화 API (새 채팅)
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        # 최근 대화 세션 가져와서 삭제 (혹은 메시지만 삭제)
+        conversation = (
+            Conversation.objects.filter(user=request.user)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        if conversation:
+            conversation.delete()
+
+        # 전공 추천 결과도 리셋할지 여부: 사용자는 "새 채팅"을 불렀으므로
+        # 처음부터(온보딩) 다시 시작하는 것이 자연스러움.
+        # MajorRecommendation은 남겨둘 수도 있지만, 온보딩 상태를 리셋하려면
+        # 클라이언트 단에서 처리가 더 중요함.
+
+        return JsonResponse({"message": "Chat history reset successful"})
+
+    except Exception as e:
+        logger.error(f"Error in reset_chat_history: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
 

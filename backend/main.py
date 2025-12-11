@@ -10,9 +10,11 @@ from langchain_core.messages import HumanMessage
 from .graph.graph_builder import build_graph
 
 # 그래프 캐싱을 위한 전역 변수
-# 그래프 빌드는 비용이 높으므로, 한 번 빌드한 그래프를 재사용합니다.
+# 그래프 빌드는 비용이 높으므로(컴파일 등), 한 번 빌드한 그래프를 메모리에 상주시켜 재사용합니다.
+# 이를 통해 매 요청마다 그래프를 다시 만드는 오버헤드를 줄입니다.
 _graph_react = None
 _graph_major = None
+
 
 def get_graph(mode: str = "react"):
     """
@@ -43,7 +45,13 @@ def get_graph(mode: str = "react"):
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
-def run_mentor(question: str, interests: str | None = None, mode: str = "react", chat_history: list[dict] | None = None) -> str | dict:
+
+def run_mentor(
+    question: str,
+    interests: str | None = None,
+    mode: str = "react",
+    chat_history: list[dict] | None = None,
+) -> str | dict:
     """
     멘토 시스템을 실행하여 학생의 질문에 답변합니다.
 
@@ -88,7 +96,7 @@ def run_mentor(question: str, interests: str | None = None, mode: str = "react",
         # 그래프 실행: agent ⇄ tools 반복하며 답변 생성
         final_state = graph.invoke(state)
 
-        if 'awaiting_user_input' in final_state:
+        if "awaiting_user_input" in final_state:
             return final_state
 
         # 마지막 메시지(LLM의 최종 답변)에서 텍스트 추출
@@ -99,7 +107,9 @@ def run_mentor(question: str, interests: str | None = None, mode: str = "react",
         return "답변을 생성할 수 없습니다."
 
 
-def run_major_recommendation(onboarding_answers: dict, question: str | None = None) -> dict:
+def run_major_recommendation(
+    onboarding_answers: dict, question: str | None = None
+) -> dict:
     """
     온보딩 단계에서 수집한 정보를 기반으로 Pinecone 전공 추천을 실행합니다.
 

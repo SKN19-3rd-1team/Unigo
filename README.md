@@ -57,6 +57,8 @@ frontend/
 ├── assets/                        # 공통 자산
 │   └── rabbit.png                # 마스코트 이미지 (원본)
 │
+├── scripts/                       # 유틸리티 스크립트
+│   └── migrate_to_mysql.py       # 데이터 마이그레이션
 ├── .env                           # 환경 변수 (OPENAI_API_KEY 등)
 ├── .gitignore                     # Git 제외 파일
 ├── requirements.txt               # Python 의존성
@@ -73,7 +75,7 @@ git clone <repository-url>
 cd frontend
 
 # Python 가상환경 생성 (권장)
-conda create -n unigo python=3.12
+conda create -n unigo python=3.11
 conda activate unigo
 
 # 의존성 설치
@@ -133,14 +135,35 @@ python manage.py runserver
 - **회원가입/로그인**: Username 또는 Email을 통한 간편한 계정 생성
 - **대화 기록 저장**: 로그인 시 모든 대화와 전공 추천 이력이 DB에 저장됩니다.
 - **세션 유지**: 비로그인 사용자는 세션 ID 기반으로 단기 기록을 유지합니다.
+- **채팅 초기화**: 언제든 새로운 대화를 시작할 수 있는 기능 제공
 
-## 🗄️ 데이터 마이그레이션 (New)
-전공 데이터(`major_detail.json`)를 DB로 적재하여 효율적인 관리가 가능합니다.
+## 🗄️ 데이터베이스 설정 (MySQL)
+
+프로젝트 실행을 위해 MySQL 데이터베이스 설정과 초기 데이터 적재가 필요합니다.
 
 ```bash
-# 전공 데이터 DB 마이그레이션 실행
-python manage.py load_major_data
+# 1. Django 마이그레이션 파일 생성 (데이터베이스 변경 사항 반영)
+python unigo/manage.py makemigrations
+
+# 2. Django 마이그레이션 적용 (테이블 생성)
+python unigo/manage.py migrate
+
+# 3. 초기 데이터 적재 (전공, 카테고리, 대학 정보 통합 적재)
+# backend/db/seed_all.py 실행 -> DB 테이블에 데이터 삽입
+python -m backend.db.seed_all
+
 ```
+
+## 🧠 벡터 데이터베이스 설정 (Pinecone)
+
+RAG 기능을 활성화하기 위해 벡터 인덱스를 구축해야 합니다:
+
+```bash
+# RAG용 Pinecone 인덱스 생성 및 데이터 업로드
+python -m backend.rag.build_major_index
+```
+
+상세한 내용은 [MySQL 마이그레이션 가이드](docs/guide.md)를 참고하세요.
 
 ## 📚 주요 기능
 
@@ -171,6 +194,7 @@ python manage.py load_major_data
 - **전공 정보 검색**: 관심사, 과목, 진출 분야, 연봉 정보
 - **대학 검색**: 특정 전공을 개설한 대학 목록
 - **입시 정보**: 대학별 정시/수시 컷 라인 (클릭 가능한 링크 제공)
+- **스마트 검색 폴백**: 정확한 전공명이 없을 경우, 유사 전공 및 글로벌 전공 데이터를 검색하여 추천
 
 #### 사용 가능한 툴 (Tools)
 
@@ -192,6 +216,7 @@ python manage.py load_major_data
 - **LangGraph**: 상태 기반 에이전트 그래프
 - **OpenAI GPT-4**: 언어 모델
 - **Pinecone**: 벡터 데이터베이스
+- **LangChain Pinecone**: 벡터 스토어 통합
 - **OpenAI Embeddings**: 텍스트 임베딩
 
 ### Frontend
@@ -200,7 +225,8 @@ python manage.py load_major_data
 - **Vanilla JavaScript**: 클라이언트 로직 (프레임워크 없음)
 
 ### Data
-- **PostgreSQL / SQLite**: 사용자, 대화 기록, 전공 데이터 저장소
+- **MySQL**: 통합 데이터베이스 (RAG + Web App)
+- **Pinecone**: 벡터 데이터베이스
 - **커리어넷 & KCUE**: 원천 데이터 출처
 
 ## 📖 API 엔드포인트
@@ -332,4 +358,4 @@ export PYTHONPATH=$PYTHONPATH:/path/to/frontend
 
 ---
 
-**Last Updated**: 2025-12-08
+**Last Updated**: 2025-12-10
