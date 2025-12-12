@@ -175,8 +175,11 @@ def logout_view(request):
     """
     로그아웃 뷰 (GET 요청 처리 및 리다이렉트)
     """
+    # 로그아웃 처리 후 클라이언트 세션 스토리지를 정리할 수 있도록
+    # 로그아웃 완료 페이지를 렌더링하여 브라우저에서 sessionStorage를 초기화하고
+    # 클라이언트를 인증 페이지로 리다이렉트하게 한다.
     logout(request)
-    return redirect("unigo_app:auth")
+    return render(request, "unigo_app/logout.html")
 
 
 def auth_me(request):
@@ -514,6 +517,7 @@ def chat_api(request):
         message_text = data.get("message")
         history = data.get("history", [])  # 프론트엔드에서 보내준 히스토리 (참고용)
         session_id = data.get("session_id")  # 비로그인 사용자용 세션 ID
+        conversation_id = data.get("conversation_id")  # 로그인 사용자용: 현재 대화 ID
 
         if not message_text:
             return JsonResponse({"error": "Empty message"}, status=400)
@@ -521,20 +525,27 @@ def chat_api(request):
         logger.debug(f"User message: {message_text}")
 
         # 1. 대화 세션 찾기 또는 생성
-        # 로그인 사용자: DB에서 최근 대화 기록 로드
+        # 로그인 사용자: conversation_id를 받으면 해당 대화 사용, 없으면 새 대화 생성
         # 비로그인 사용자: 세션 ID를 기반으로 대화 유지
         conversation = None
         if request.user.is_authenticated:
-            # 로그인 사용자의 경우: 최근 대화 로드 or 새 대화
-            # (여기서는 단순화를 위해 항상 가장 최근 대화를 이어서 하거나, 없으면 생성)
-            conversation = (
-                Conversation.objects.filter(user=request.user)
-                .order_by("-updated_at")
-                .first()
-            )
-            if not conversation:
+            # 프론트엔드에서 conversation_id를 받으면 해당 대화 사용
+            if conversation_id:
+                try:
+                    conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+                except Conversation.DoesNotExist:
+                    # conversation_id가 유효하지 않으면 새 대화 생성
+                    conversation = Conversation.objects.create(
+                        user=request.user, 
+                        session_id=str(uuid.uuid4()),  # 로그인 사용자도 고유한 session_id 생성
+                        title=message_text[:20]
+                    )
+            else:
+                # conversation_id가 없으면 새 대화 생성
                 conversation = Conversation.objects.create(
-                    user=request.user, title=message_text[:20]
+                    user=request.user, 
+                    session_id=str(uuid.uuid4()),  # 로그인 사용자도 고유한 session_id 생성
+                    title=message_text[:20]
                 )
         else:
             # 비로그인 사용자: session_id 필수
@@ -636,6 +647,126 @@ def chat_history(request):
         logger.error(f"Error in chat_history: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
+
+@csrf_exempt
+@login_required
+def save_chat_history(request):
+    """
+    현재 세션의 채팅 내용을 새로운 Conversation으로 저장하는 API
+    - 로그인 사용자 전용
+    - 프론트엔드에서 전달한 히스토리를 새 Conversation으로 생성하여 저장
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        chat_history = data.get("history", [])
+
+        if not chat_history:
+            return JsonResponse({"message": "No chat history to save"}, status=200)
+
+        # 제목: 첫 user 메시지 또는 '새 대화'
+        title = "새 대화"
+        for msg in chat_history:
+            if msg.get("role") == "user":
+                title = msg.get("content", "새 대화")[:50]
+                break
+
+        # 항상 새로운 Conversation을 생성하여 현재 로컬 세션을 보존
+        new_conversation = Conversation.objects.create(
+            user=request.user,
+            session_id=str(uuid.uuid4()),
+            title=title,
+        )
+
+        # 메시지 저장
+        created_count = 0
+        for msg in chat_history:
+            Message.objects.create(
+                conversation=new_conversation,
+                role=msg.get("role", "user"),
+                content=msg.get("content", ""),
+                metadata=msg.get("metadata"),
+            )
+            created_count += 1
+
+        logger.info(
+            f"Chat history saved: {created_count} messages in conversation {new_conversation.id} (user={request.user.username})"
+        )
+
+        return JsonResponse(
+            {
+                "message": "Chat history saved successfully",
+                "conversation_id": new_conversation.id,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in save_chat_history: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def list_conversations(request):
+    """
+    로그인 사용자의 과거 대화 세션 리스트 반환
+    """
+    try:
+        convs = (
+            Conversation.objects.filter(user=request.user)
+            .order_by("-updated_at")
+        )
+
+        data = []
+        for c in convs:
+            last_msg = c.get_last_message()
+            preview = last_msg.content[:80] if last_msg else ""
+            data.append(
+                {
+                    "id": c.id,
+                    "title": c.title,
+                    "created_at": c.created_at.isoformat(),
+                    "updated_at": c.updated_at.isoformat(),
+                    "message_count": c.get_message_count(),
+                    "last_message_preview": preview,
+                }
+            )
+
+        return JsonResponse({"conversations": data})
+
+    except Exception as e:
+        logger.error(f"Error in list_conversations: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def load_conversation(request):
+    """
+    특정 conversation의 메시지들을 반환
+    쿼리 파라미터: conversation_id
+    """
+    try:
+        conv_id = request.GET.get("conversation_id")
+        if not conv_id:
+            return JsonResponse({"error": "conversation_id required"}, status=400)
+
+        try:
+            conv = Conversation.objects.get(id=conv_id, user=request.user)
+        except Conversation.DoesNotExist:
+            return JsonResponse({"error": "Conversation not found"}, status=404)
+
+        msgs = conv.messages.order_by("created_at")
+        messages = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()} for m in msgs
+        ]
+
+        return JsonResponse({"conversation": {"id": conv.id, "title": conv.title, "messages": messages}})
+
+    except Exception as e:
+        logger.error(f"Error in load_conversation: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+    
 
 @csrf_exempt
 @login_required
