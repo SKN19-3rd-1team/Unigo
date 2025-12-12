@@ -1,5 +1,5 @@
 {% extends "unigo_app/base.html" %}
-
+{% load static %}
 {% block title %}Settings - Unigo{% endblock %}
 
 {% block extra_head %}
@@ -15,71 +15,82 @@
             <div class="sidebar-email">{{ user.email }}</div>
         </div>
         <div class="sidebar-menu-box">
-            <div class="sidebar-btn active">계정 설정</div>
+            <div class="sidebar-btn active" data-target="section-account">계정 설정</div>
+            <!-- [NEW] 캐릭터 설정 페이지로 이동 -->
+            <a href="{% url 'unigo_app:character_select' %}" class="sidebar-btn"
+                style="text-decoration:none; color:inherit; display:block;">캐릭터 설정</a>
         </div>
     </aside>
 
     <!-- Main Panel -->
+    <!-- Main Panel -->
     <div class="setting-panel">
-        <h1 class="setting-title">계정 설정</h1>
-        <p class="setting-desc">개인정보 및 보안 설정을 관리합니다.</p>
 
-        <!-- Tabs Navigation -->
-        <div class="setting-tabs">
-            <div class="tab-btn active" data-tab="nickname">닉네임 변경</div>
-            <div class="tab-btn" data-tab="password">비밀번호 변경</div>
-            <div class="tab-btn" data-tab="dangerzone">계정 삭제</div>
-        </div>
+        <!-- [SECTION] Account Settings (Existing) -->
+        <section id="section-account" class="setting-section">
+            <h1 class="setting-title">계정 설정</h1>
+            <p class="setting-desc">개인정보 및 보안 설정을 관리합니다.</p>
 
-        <!-- Nickname Tab -->
-        <div class="tab-content active" id="tab-nickname">
-            <form id="form-nickname" onsubmit="return false;">
-                <div class="form-group">
-                    <label class="input-label">새 닉네임</label>
-                    <div class="input-row">
-                        <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
-                        <button type="button" class="btn-secondary" id="btn-check-duplicate">중복 확인</button>
+            <!-- Tabs Navigation -->
+            <div class="setting-tabs">
+                <div class="tab-btn active" data-tab="nickname">닉네임 변경</div>
+                <div class="tab-btn" data-tab="password">비밀번호 변경</div>
+                <div class="tab-btn" data-tab="dangerzone">계정 삭제</div>
+            </div>
+
+            <!-- Nickname Tab -->
+            <div class="tab-content active" id="tab-nickname">
+                <form id="form-nickname" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="input-label">새 닉네임</label>
+                        <div class="input-row">
+                            <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
+                            <button type="button" class="btn-secondary" id="btn-check-duplicate">중복 확인</button>
+                        </div>
+                        <div class="error-msg" id="nickname-error"></div>
+                        <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
                     </div>
-                    <div class="error-msg" id="nickname-error"></div>
-                    <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
-                </div>
 
-                <div class="form-group">
-                    <label class="input-label">현재 비밀번호</label>
-                    <input type="password" class="form-input" id="nickname-password"
-                        placeholder="본인 확인을 위해 비밀번호를 입력해주세요">
-                </div>
-
-                <button type="submit" class="setting-btn-primary" id="btn-save-nickname">변경 내용 저장</button>
-            </form>
-        </div>
-
-        <!-- Password Tab -->
-        <div class="tab-content" id="tab-password">
-            <form id="form-password" onsubmit="return false;">
-                <div class="form-group">
-                    <label class="input-label">현재 비밀번호</label>
-                    <input type="password" class="form-input" id="current-password" placeholder="현재 비밀번호">
-                </div>
-
-                <div class="form-group">
-                    <label class="input-label">새 비밀번호</label>
-                    <div class="input-row">
-                        <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
-                        <button type="button" class="btn-secondary" disabled
-                            style="opacity:0; cursor:default">인증</button> <!-- Layout Spacer -->
+                    <div class="form-group">
+                        <label class="input-label">현재 비밀번호</label>
+                        <input type="password" class="form-input" id="nickname-password"
+                            placeholder="본인 확인을 위해 비밀번호를 입력해주세요">
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label class="input-label">새 비밀번호 확인</label>
-                    <input type="password" class="form-input" id="new-password-confirm" placeholder="새 비밀번호를 다시 입력하세요">
-                    <div class="error-msg" id="password-match-error">비밀번호가 일치하지 않습니다.</div>
-                </div>
+                    <button type="submit" class="setting-btn-primary" id="btn-save-nickname">변경 내용 저장</button>
+                </form>
+            </div>
 
-                <button type="submit" class="setting-btn-primary" id="btn-save-password">변경 내용 저장</button>
-            </form>
-        </div>
+            <!-- Password Tab -->
+            <div class="tab-content" id="tab-password">
+                <form id="form-password" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="input-label">현재 비밀번호</label>
+                        <input type="password" class="form-input" id="current-password" placeholder="현재 비밀번호">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="input-label">새 비밀번호</label>
+                        <div class="input-row">
+                            <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
+                            <button type="button" class="btn-secondary" disabled
+                                style="opacity:0; cursor:default">인증</button> <!-- Layout Spacer -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="input-label">새 비밀번호 확인</label>
+                        <input type="password" class="form-input" id="new-password-confirm"
+                            placeholder="새 비밀번호를 다시 입력하세요">
+                        <div class="error-msg" id="password-match-error">비밀번호가 일치하지 않습니다.</div>
+                    </div>
+
+                    <button type="submit" class="setting-btn-primary" id="btn-save-password">변경 내용 저장</button>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
 
                 <!-- Dangerzone Tab -->
 
@@ -133,7 +144,7 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Tab Switching
+        // Tab Switching (Account Settings internal tabs)
         const tabs = document.querySelectorAll('.tab-btn');
         const contents = document.querySelectorAll('.tab-content');
 
@@ -278,6 +289,22 @@
                 console.error('Error:', error);
                 alert('오류가 발생했습니다.');
             }
+        });
+
+        // Sidebar Switching Logic (Account vs others)
+        // Since character is now a link, we only handle simple display if needed, 
+        // but currently setting page is just account settings + link.
+        // We can simplify sidebar logic or remove it if 'active' class on Account is sufficient.
+        const sidebarBtns = document.querySelectorAll('.sidebar-btn');
+        // Simple logic to keep styles if clicked (though link redirects)
+        sidebarBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // If it's a link, let it navigate.
+                // If it's a div (like Account), handle tab switch if we had multiple single-page sections.
+                if (btn.tagName === 'DIV') {
+                    // Logic for account section (already visible by default)
+                }
+            });
         });
     });
 </script>

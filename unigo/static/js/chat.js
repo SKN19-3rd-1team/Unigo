@@ -95,6 +95,18 @@ const loadState = async () => {
         const authData = await authResponse.json();
 
         if (authData.is_authenticated) {
+            console.log("User is authenticated. Fetching server history...");
+            // [NEW] Update character image
+            if (authData.user && authData.user.character) {
+                console.log("Loading character from server:", authData.user.character);
+                updateCharacterImage(authData.user.character);
+                localStorage.setItem('user_character', authData.user.character);
+            } else {
+                // Fallback: check local storage just in case server returned nothing (guest/error?)
+                const saved = localStorage.getItem('user_character');
+                if (saved) updateCharacterImage(saved);
+            }
+            await fetchHistory();
             console.log("User is authenticated. Initializing fresh chat session...");
 
             // 로그인 사용자는 기본적으로 새로운 대화 세션으로 시작
@@ -187,16 +199,44 @@ const detectReloadAndReset = () => {
 
 // -- UI Rendering --
 
+// Helper to get avatar URL
+const getAvatarUrl = (type) => {
+    // Use the user's selected character for both AI (Persona) and User avatar
+    // Check window.USER_CHARACTER first (server injected), then localStorage
+    const savedChar = (window.USER_CHARACTER && window.USER_CHARACTER !== 'None')
+        ? window.USER_CHARACTER
+        : localStorage.getItem('user_character');
+
+    let filename = savedChar || 'rabbit'; // Default to rabbit
+    if (filename === 'hedgehog') filename = 'hedgehog_ver1';
+
+    return `/static/images/${filename}.png`;
+};
+
 const createBubble = (text, type) => {
+    // Container
+    const container = document.createElement('div');
+    container.classList.add('bubble-container', type);
+
+    // Avatar
+    const avatar = document.createElement('img');
+    avatar.classList.add('chat-avatar');
+    avatar.src = getAvatarUrl(type);
+    avatar.alt = type === 'ai' ? 'AI' : 'User';
+    container.appendChild(avatar);
+
+    // Bubble
     const bubble = document.createElement('div');
-    bubble.classList.add('bubble', type);
+    bubble.classList.add('bubble');
 
     // Markdown-style Link Parsing: [Label](URL) -> <a href="URL">Label</a>
     let formattedText = text.replace(/\n/g, '<br>');
     formattedText = formattedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
 
     bubble.innerHTML = formattedText;
-    return bubble;
+    container.appendChild(bubble);
+
+    return container; // Return container instead of just bubble
 };
 
 const appendBubble = (text, type, shouldPersist = true) => {
@@ -217,9 +257,22 @@ const appendBubble = (text, type, shouldPersist = true) => {
 const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 20) => {
     if (!chatCanvas) return;
 
+    // Create container
+    const container = document.createElement('div');
+    container.classList.add('bubble-container', type);
+
+    // Avatar
+    const avatar = document.createElement('img');
+    avatar.classList.add('chat-avatar');
+    avatar.src = getAvatarUrl(type);
+    container.appendChild(avatar);
+
+    // Bubble
     const bubble = document.createElement('div');
-    bubble.classList.add('bubble', type);
-    chatCanvas.appendChild(bubble);
+    bubble.classList.add('bubble');
+    container.appendChild(bubble);
+
+    chatCanvas.appendChild(container);
 
     // Typing effect
     let currentText = '';
@@ -243,7 +296,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
         saveState();
     }
 
-    return bubble;
+    return container;
 };
 
 const renderHistory = () => {
@@ -258,12 +311,15 @@ const renderHistory = () => {
 
 const showLoadingDetails = () => {
     if (!chatCanvas) return null;
-    const loadingBubble = document.createElement('div');
-    loadingBubble.classList.add('bubble', 'ai', 'loading');
-    loadingBubble.textContent = '...';
-    chatCanvas.appendChild(loadingBubble);
+
+    // Use createBubble for loading state too to keep layout consistent
+    // But text is just '...'
+    const loadingContainer = createBubble('...', 'ai');
+    loadingContainer.classList.add('loading'); // You might need CSS for .bubble-container.loading or .bubble.loading
+
+    chatCanvas.appendChild(loadingContainer);
     chatCanvas.scrollTop = chatCanvas.scrollHeight;
-    return loadingBubble;
+    return loadingContainer;
 };
 
 // -- Onboarding Logic --
@@ -656,3 +712,29 @@ if (chatInput) {
 
 // Start
 init();
+function updateCharacterImage(characterId) {
+    console.log("updateCharacterImage called with:", characterId);
+    const imgEl = document.querySelector('.result-rabbit');
+    if (!imgEl) {
+        console.warn(".result-rabbit element not found!");
+        return;
+    }
+
+    // Map character IDs to image paths (simple wrapper)
+    // If you have a more complex mapping, consider a dictionary, 
+    // but here we can assume the ID matches filenames except maybe 'hedgehog'
+    let filename = characterId;
+    if (characterId === 'hedgehog') filename = 'hedgehog_ver1';
+
+    // Safety check for valid ID or default
+    if (!filename) filename = 'rabbit';
+
+    imgEl.src = `/static/images/${filename}.png`;
+
+    // Update alt text for accessibility
+    imgEl.alt = `${Object.keys({
+        'rabbit': '토끼', 'bear': '곰', 'fox': '여우',
+        'hedgehog': '고슴도치', 'koala': '코알라', 'otter': '수달',
+        'penguin': '펭귄', 'raccoon': '너구리', 'sloth': '나무늘보', 'turtle': '거북이'
+    }).find(key => key === characterId) || 'User Character'}`;
+}

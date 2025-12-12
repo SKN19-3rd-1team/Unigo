@@ -172,5 +172,20 @@ overlayFindPassword.addEventListener("click", () => modalFindPassword.classList.
 returnLoginBtn.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 
 
+// ==========================================
+// [REMOVED] Hero Image Sync for Auth Page
+// (User requested to always show Rabbit on login page)
+// ==========================================
+// ==========================================
+// [FIX] Hero Image Force Rabbit
+// Always show Rabbit on Auth page, ignoring localStorage
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    const heroImg = document.querySelector(".hero-img");
+    if (heroImg) {
+        // Force reset to Rabbit in case some other script tried to change it
+        heroImg.src = "/static/images/rabbit.png";
+    }
+});
 
 const deleteAccountBtn = document.getElementById("btn-delete-account");
