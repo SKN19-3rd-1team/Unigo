@@ -468,7 +468,8 @@ html {
 
 .form-input {
     flex-grow: 1;
-    padding: 12px;
+    padding: 10px;
+    margin: 5px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 1rem;
@@ -529,7 +530,8 @@ html {
     position: relative;
     perspective: 1200px;
     margin-bottom: 20px;
-    margin-top: 50px; /* Added spacing */
+    margin-top: 50px;
+    /* Added spacing */
 }
 
 .carousel-3d {
@@ -547,7 +549,8 @@ html {
     left: 50%;
     top: 50%;
     margin-left: -100px;
-    margin-top: -150px; /* Adjusted centering */
+    margin-top: -150px;
+    /* Adjusted centering */
     background: white;
     border-radius: 20px;
     padding: 25px;
@@ -592,8 +595,15 @@ html {
 }
 
 @keyframes charFloat {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-12px);
+    }
 }
 
 .controls {
