@@ -187,3 +187,5 @@ document.addEventListener("DOMContentLoaded", () => {
         heroImg.src = "/static/images/rabbit.png";
     }
 });
+
+const deleteAccountBtn = document.getElementById("btn-delete-account");

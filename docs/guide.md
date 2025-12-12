@@ -131,13 +131,18 @@ python manage.py migrate
 cd ..
 python -m backend.db.seed_all
 
+### 4.2. 벡터 DB(Pinecone) 적재
+검색 품질을 높이기 위해 전공 상세 정보와 **학과 대분류(표준 학과명)**을 벡터화하여 Pinecone에 저장합니다.
+
+```bash
+# 1. 전공 상세 정보 (Major Detail) 임베딩 -> 'majors' namespace
+python backend/scripts/ingest_university_majors.py
+
+# 2. [New] 학과 대분류 (Major Categories) 임베딩 -> 'major_categories' namespace
+# (학과 검색 시 '컴퓨터' -> '소프트웨어' 등 의미 기반 자동 확장을 위해 필수)
+python backend/scripts/ingest_major_categories.py
 ```
-
-### 6. 벡터 데이터베이스 설정 (Pinecone)
-
-RAG 시스템이 동작하려면 전공 데이터를 벡터화하여 Pinecone에 업로드해야 합니다.
-
-**참고**: 이 과정은 `OPENAI_API_KEY`와 `PINECONE_API_KEY`가 `.env`에 올바르게 설정되어 있어야 합니다.
+와 `PINECONE_API_KEY`가 `.env`에 올바르게 설정되어 있어야 합니다.
 
 ```bash
 # RAG용 Pinecone 인덱스 구축 (자동 생성 및 데이터 업로드)
@@ -436,6 +441,15 @@ tail -f unigo/logs/unigo.log
 ```bash
 # Ctrl+C로 서버 중지 후
 python manage.py runserver
+```
+
+## ✅ 변경 사항 검증 (Test)
+
+주요 로직 변경(예: 검색 로직 수정) 후에는 제공된 테스트 스크립트를 사용하여 기능을 검증할 수 있습니다.
+
+```bash
+# LLM 툴 및 검색 로직 검증
+python test_llm.py
 ```
 
 ## 📝 추가 정보
