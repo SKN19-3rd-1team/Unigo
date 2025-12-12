@@ -236,3 +236,77 @@ def index_major_docs(docs: list[MajorDoc]) -> int:
 
     vectorstore.add_texts(texts=texts, metadatas=metadatas, ids=ids)
     return len(docs)
+
+
+def index_university_majors(docs: list[Any]) -> int:
+    """
+    UniversityMajorDoc 리스트를 Pinecone의 university_majors 네임스페이스에 인덱싱한다.
+
+    Args:
+        docs: UniversityMajorDoc 리스트 (loader.py에서 정의됨)
+    """
+    # 순환 참조 방지를 위해 여기서 임포트하거나 Any로 받음
+    # docs: list[UniversityMajorDoc]
+
+    # 별도 네임스페이스 사용
+    # settings.pinecone_namespace가 "majors"라면, "university_majors"를 직접 하드코딩하거나 설정에서 가져옴
+    target_namespace = "university_majors"
+
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+
+    # 별도의 VectorStore 인스턴스 생성 (네임스페이스가 다르므로)
+    vectorstore = PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace=target_namespace,
+    )
+
+    texts: list[str] = []
+    metadatas: list[dict[str, Any]] = []
+    ids: list[str] = []
+
+    for doc in docs:
+        texts.append(doc.text)
+        ids.append(doc.doc_id)
+
+        meta = {
+            "major_id": doc.major_id,
+            "university": doc.university,
+            "department": doc.department,
+            "major_name": doc.major_name,  # 대분류
+            "doc_type": "university_major",
+        }
+        metadatas.append(meta)
+
+    vectorstore.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+    return len(docs)
+
+
+def get_university_majors_vectorstore() -> PineconeVectorStore:
+    """
+    대학-학과 검색용 VectorStore 반환 (Namespace: university_majors)
+    """
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+    return PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace="university_majors",
+    )
+
+
+def get_major_category_vectorstore() -> PineconeVectorStore:
+    """
+    대분류(표준 학과명) 검색용 VectorStore 반환 (Namespace: major_categories)
+    """
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+    return PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace="major_categories",
+    )

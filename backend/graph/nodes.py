@@ -33,10 +33,10 @@ llm = get_llm()
 # doc_type별 기본 가중치 (관심사/과목 비중을 약간 높게 설정)
 MAJOR_DOC_WEIGHTS = {
     "summary": 1.0,
-    "interest": 1.1,
-    "property": 0.9,
-    "subjects": 1.2,
-    "jobs": 1.0,
+    "interest": 0.7,
+    "property": 0.7,
+    "subjects": 1.0,
+    "jobs": 1.2,
 }
 
 # 선호 전공 점수 부여 티어 (Tiered Scoring System)
@@ -133,24 +133,63 @@ def _summarize_major_hits(hits, aggregated_scores, limit: int = 10):
     # Pinecone 검색 결과를 전공별로 묶어 상위 doc_type/태그 등을 정리
     per_major: dict[str, dict] = {}
 
+    # [BugFix] Duplicate Removal
+    # major_id가 다르더라도 major_name이 같으면 중복으로 처리
+    seen_names = set()
+
     for hit in hits:
         if not hit.major_id:
             continue
-        entry = per_major.setdefault(
-            hit.major_id,
-            {
-                "major_id": hit.major_id,
-                "major_name": hit.major_name,
-                "cluster": hit.metadata.get("cluster"),
-                "salary": hit.metadata.get("salary"),
-                "score": aggregated_scores.get(hit.major_id, 0.0),
-                "top_doc_types": {},
-                "sample_docs": [],
-                "relate_subject_tags": [],
-                "job_tags": [],
-                "summary": "",  # summary 필드 추가
-            },
-        )
+
+        # 이름 기반 중복 체크
+        if hit.major_name in seen_names:
+            # 이미 같은 이름의 전공이 존재하면, 점수가 더 높은 경우 업데이트하거나 스킵
+            # 여기서는 간단히 스킵 (hits가 점수순 정렬되어 있다고 가정하면 첫 번째가 베스트)
+            # _summarize_major_hits 호출 전에 hits가 정렬되어 있지 않을 수 있으므로
+            # 로직을 좀 더 정교하게: 이미 존재하는 entry를 찾아서 병합
+
+            # 기존 entry 찾기 (이름으로)
+            existing_id = None
+            for mid, data in per_major.items():
+                if data["major_name"] == hit.major_name:
+                    existing_id = mid
+                    break
+
+            if existing_id:
+                entry = per_major[existing_id]
+            else:
+                # Should not happen if seen_names logic is correct
+                entry = per_major.setdefault(
+                    hit.major_id,
+                    {
+                        "major_id": hit.major_id,
+                        # ...
+                    },
+                )
+        else:
+            seen_names.add(hit.major_name)
+            entry = per_major.setdefault(
+                hit.major_id,
+                {
+                    "major_id": hit.major_id,
+                    "major_name": hit.major_name,
+                    "cluster": hit.metadata.get("cluster"),
+                    "salary": hit.metadata.get("salary"),
+                    "score": aggregated_scores.get(hit.major_id, 0.0),
+                    "top_doc_types": {},
+                    "sample_docs": [],
+                    "relate_subject_tags": [],
+                    "job_tags": [],
+                    "summary": "",
+                },
+            )
+
+        # 점수 업데이트 (Merge strategies)
+        # 같은 이름의 다른 ID가 들어왔을 때, 점수가 더 높다면 score 업데이트?
+        # 여기서는 aggregated_scores가 이미 ID별로 합산되었기 때문에
+        # 이름이 같은 ID들의 점수를 합치거나 Max를 취해야 함.
+        # 현재는 단순 스킵 방식이나 병합 방식을 써야 함.
+        # 여기서는 "병합" 방식으로 구현: 태그 등을 합침.
 
         entry["top_doc_types"][hit.doc_type] = max(
             entry["top_doc_types"].get(hit.doc_type, 0.0),
@@ -283,7 +322,6 @@ def recommend_majors_node(state: MentorState) -> dict:
                 search_targets = preferred_list
 
             # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
-            # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
             from backend.rag.tools import (
                 _find_majors,
             )
@@ -405,24 +443,19 @@ def agent_node(state: MentorState) -> dict:
             content=f"""
 당신은 학생들의 전공 선택을 돕는 '대학 전공 탐색 멘토'입니다. 모든 답변은 한국어로 작성하세요.
 
-[🚨 절대 규칙 - 반드시 준수]
-1. **툴 데이터 우선 및 경고 전달**:
-   - `get_major_career_info` 툴 결과에 **`warning_context`** 필드가 있다면, 답변 시 **반드시 해당 경고 문구("이 정보는 커리어넷 기반 일반 정보이며, 특정 대학의 실제 커리큘럼과 다를 수 있음")를 사용자에게 명확히 전달**하세요. 절대 일반 정보를 특정 대학의 확정된 정보인 것처럼 답변하지 마세요.
-   - `get_university_admission_info` 툴 결과 메시지에 **"⚠️ 주의"** 또는 **"개설 여부가 확인되지 않습니다"** 내용이 포함되어 있다면, 이를 누락하지 말고 사용자에게 그대로 고지하세요.
-2. **툴 호출 필수**: 전공/학과/대학 관련 질문에는 반드시 적절한 툴을 tool_calls로 호출해 근거를 확보한 뒤 답변하세요.
-3. **절대 추측 금지**: 데이터베이스에 없는 학과명, 대학명, 직업명을 절대로 만들어내거나 추측하지 마세요. 
-4. **데이터 출처 명시**: 데이터 출처가 "커리어 넷"임을 자연스럽게 언급하세요.
+[핵심 원칙]
+1. **툴 가이드 준수**: 각 툴(get_major_career_info, get_university_admission_info 등)의 설명(docstring)에 명시된 "사용 규칙"과 "제약 사항"을 철저히 따르세요.
+2. **환각 방지**: 
+   - 일반 전공 정보(취업률, 연봉)를 제공할 때, **절대 특정 대학의 정보인 것처럼** 대학명을 붙여서 설명하지 마세요.
+   - 반드시 "OO대학의 구체적 정보는 없지만, 일반적인 OO학과의 정보는..." 형태로 분리하여 답변하세요.
+3. **근거 기반 답변**: 반드시 툴 호출 결과를 바탕으로 답변하고, 추측하지 마세요. 데이터가 없으면 없다고 솔직히 말하세요.
+4. **출처 명시**: 데이터 출처가 "커리어넷"임을 자연스럽게 언급하세요.
+5. **유사 전공 허용**: 툴 검색 결과에 사용자가 query한 학과명과 정확히 일치하지 않는 학과가 있다면, 검색된 학과를 제시하세요.
+6. **캠퍼스 구분**: '본교'와 '분교(ERICA, 세종, 글로컬 등)'는 서로 다른 대학으로 취급하여 명확히 구분해서 답변하세요. (예: "한양대학교는 컴퓨터소프트웨어학부, 한양대학교 ERICA는 컴퓨터학부가 개설되어 있습니다.")
 
-[출력 제어 규칙 - 반드시 준수]
-- 툴 결과 중 **사용자 질문과 직접적으로 관련된 내용만 선택적으로 제공**합니다.
-- 툴이 제공한 정보라도, **사용자가 요청하지 않은 범주(예: 커리큘럼 질문에 연봉/자격증/진로)는 절대 포함하지 않습니다.**
-- 필요한 정보만 간결하게 전달하며, 과도한 정보 제공은 금지합니다.
-                                       
-[응답 방식]
-- 항상 툴 결과를 바탕으로 친절하고 구조화된 설명을 제공합니다.
-- 이미 받은 툴 결과가 있다면 재사용하고, 정보가 부족하면 같은 툴을 다시 호출해도 됩니다.
-- tool_calls 없이 추측하려는 경우, get_search_help()를 호출해 검색 도움말을 제공하세요.
-- 과다한 정보 제공을 피하기 위해 툴 결과 중 사용자 질의에 대한 정보만을 제공합니다.
+[출력 제어]
+- 사용자가 요청한 정보(예: 커리큘럼)만 제공하고, 요청하지 않은 정보(예: 연봉, 자격증)는 과도하게 나열하지 마세요.
+- 친절하고 구조화된 설명을 제공하세요.
                                        
 학생 관심사: {interests_text}
 """

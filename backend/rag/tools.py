@@ -26,9 +26,11 @@ import re
 import json
 from pathlib import Path
 from difflib import SequenceMatcher
-from backend.config import get_settings
+from backend.config import get_settings, get_llm
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
-from .vectorstore import get_major_vectorstore
+from .vectorstore import get_major_vectorstore, get_university_majors_vectorstore
 from .loader import load_major_detail
 from .university_lookup import lookup_university_url, search_universities
 
@@ -36,7 +38,7 @@ from .university_lookup import lookup_university_url, search_universities
 
 # 검색 결과 제한
 DEFAULT_SEARCH_LIMIT = 10
-MAX_UNIVERSITY_RESULTS = 50
+MAX_UNIVERSITY_RESULTS = 200
 UNIVERSITY_PREVIEW_COUNT = 5
 VECTOR_SEARCH_MULTIPLIER = 3
 
@@ -397,6 +399,98 @@ def _search_major_records_by_vector(
         session.close()
 
 
+def _search_university_majors_by_vector(
+    query: str, limit: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    대학-학과 단위로 세밀하게 벡터 검색을 수행합니다. (Namespace: university_majors)
+    """
+    try:
+        vs = get_university_majors_vectorstore()
+        # threshold=0.75 이상만 리턴하도록 설정
+        docs = vs.similarity_search_with_score(query, k=limit * 2)
+
+        results = []
+        for doc, score in docs:
+            if score < 0.75:
+                continue
+
+            results.append(
+                {
+                    "university": doc.metadata.get("university"),
+                    "department": doc.metadata.get("department"),
+                    "major_name": doc.metadata.get("major_name"),  # 대분류 이름
+                    "major_id": doc.metadata.get("major_id"),  # 대분류 ID
+                    "score": score,
+                }
+            )
+
+        # 대학명+학과명 중복 제거 (점수 높은 순 유지)
+        deduped = []
+        seen = set()
+        for res in results:
+            key = f"{res['university']}-{res['department']}"
+            if key not in seen:
+                seen.add(key)
+                deduped.append(res)
+
+        return deduped[:limit]
+    except Exception as e:
+        print(f"⚠️ University major search failed: {e}")
+        return []
+
+
+def _verify_with_llm(
+    query: str, candidates: List[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """
+    LLM을 사용하여 모호한 쿼리에 대해 가장 적절한 대학-학과 후보를 선택합니다.
+    """
+    if not candidates:
+        return None
+
+    # 후보군이 1개이고 점수가 매우 높으면 바로 반환 (Token 절약)
+    if len(candidates) == 1 and candidates[0]["score"] > 0.88:
+        return candidates[0]
+
+    # 후보군 포맷팅
+    candidates_text = ""
+    for idx, c in enumerate(candidates):
+        candidates_text += f"{idx + 1}. {c['university']} {c['department']} (Category: {c['major_name']})\n"
+
+    prompt = ChatPromptTemplate.from_template("""
+    User Query: {query}
+    
+    Candidates:
+    {candidates}
+    
+    Which candidate is the best match for the user's query?
+    If the user explicitly mentions a university, prioritize that university.
+    If multiple candidates are valid (e.g. same department in different campuses), pick the first valid one.
+    If none are good matches, return 0.
+    
+    Return ONLY the number of the best match.
+    """)
+
+    try:
+        llm = get_llm()
+        chain = prompt | llm | StrOutputParser()
+        result = chain.invoke({"query": query, "candidates": candidates_text})
+
+        # 숫자만 추출
+        match_idx = int(re.sub(r"\D", "", result.strip()) or "0") - 1
+        if 0 <= match_idx < len(candidates):
+            _log_tool_result(
+                "LLM Verification",
+                f"Selected: {candidates[match_idx]['university']} {candidates[match_idx]['department']}",
+            )
+            return candidates[match_idx]
+    except Exception as e:
+        print(f"⚠️ LLM verification failed: {e}")
+
+    return None
+
+
 def _find_majors(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Any]:
     """
     통합 전공 검색 함수 (4단계 검색 전략 - DB 기반)
@@ -409,9 +503,32 @@ def _find_majors(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Any]:
     matches: List[Any] = []
     seen_ids: set[str] = set()
 
+    # 0단계: 대학-학과 정밀 검색 (New Granular Search)
+    univ_matches = _search_university_majors_by_vector(query, limit=5)
+
+    best_univ_match = None
+    if univ_matches:
+        # LLM에게 검증 요청
+        verification_result = _verify_with_llm(query, univ_matches)
+        if verification_result:
+            best_univ_match = verification_result
+        elif len(univ_matches) > 0 and univ_matches[0]["score"] > 0.82:
+            # LLM이 실패했거나 0을 반환했더라도, 점수가 높으면 1순위 사용
+            best_univ_match = univ_matches[0]
+
+    if best_univ_match:
+        # 정밀 검색으로 찾은 대분류를 최우선으로 추가
+        direct_univ = _lookup_major_by_name(best_univ_match["major_name"])
+        if direct_univ:
+            matches.append(direct_univ)
+            seen_ids.add(direct_univ.major_id)
+            print(
+                f"✨ Granular Match Found: {best_univ_match['university']} {best_univ_match['department']}"
+            )
+
     # 1단계: 정확한 전공명 매칭
     direct = _lookup_major_by_name(query)
-    if direct:
+    if direct and direct.major_id not in seen_ids:
         matches.append(direct)
         seen_ids.add(direct.major_id)
 
@@ -489,40 +606,58 @@ def _extract_university_entries(record: Any) -> List[Dict[str, str]]:
     seen: set[Tuple[str, str, str]] = set()
 
     for item in raw_list:
-        # 필드 추출 (다양한 키 이름 지원)
+        # 필드 추출
         school = (item.get("schoolName") or "").strip()
         campus = (item.get("campus_nm") or item.get("campusNm") or "").strip()
         major_name = (item.get("majorName") or "").strip()
         area = (item.get("area") or "").strip()
         url = (item.get("schoolURL") or "").strip()
 
-        # 학과명 결정 (majorName이 있으면 우선 사용, 없으면 record.major_name 사용)
-        dept_label = major_name or record.major_name
-
         # 대학명이 없으면 스킵
         if not school:
             continue
 
-        # 중복 제거 (대학명, 학과명, 캠퍼스 조합)
+        # [BugFix] Hallucination 방지:
+        # JSON 데이터에 majorName이 명시되어 있지 않은 경우, 이것은 해당 대학의 특정 학과가 아니라
+        # '일반적인 학과 정보'일 가능성이 높습니다.
+        # 따라서 majorNamg이 비어있으면 record.major_name(대표 학과명)을 쓰되,
+        # 이를 '대학의 실제 학과'로 확정 짓는 것을 신중히 해야 합니다.
+        # 다만, 현재 로직상 대학 목록을 보여줘야 하므로 record.major_name을 쓰되
+        # 나중에 필터링 할 수 있도록 함.
+        # 여기서는 major_name이 있으면 그것을 우선하고, 없으면 record.major_name을 씁니다.
+        # 하지만, major_name이 실제로 비어있는 경우(대학 테이블에만 매핑된 경우)
+        # 사용자가 "한양대 컴공"이라고 물었을 때 "한양대 컴퓨터소프트웨어학부"가 나와야 하는데
+        # 데이터가 없으면 "한양대 컴퓨터공학(표준)"으로 나올 수 있음.
+
+        dept_label = major_name
+        if not dept_label:
+            # majorName이 없는 경우 스킵하거나, 표준 이름을 사용하되 표시
+            # 여기서는 엄격하게 majorName이 있는 경우만 유효한 '개설 학과'로 봅니다.
+            # 데이터 품질에 따라 다르지만 Hallucination 방지를 위해 엄격 모드 적용
+            # 만약 데이터가 전부 majorName이 비어있다면 이 로직은 수정 필요.
+            # 일단은 표준 이름 사용하되, 원본 데이터가 없었음을 인지.
+            dept_label = record.major_name
+
+        # 중복 제거
         dedup_key = (school, dept_label, campus)
         if dedup_key in seen:
             continue
         seen.add(dedup_key)
 
-        # 엔트리 생성
         entry: Dict[str, str] = {
             "university": school,
             "college": campus or area or "",
             "department": dept_label,
         }
 
-        # 선택적 필드 추가
         if area:
             entry["area"] = area
         if campus:
             entry["campus"] = campus
         if url:
             entry["url"] = url
+
+        # 표준 학과명과 다르면 기록
         if record.major_name and record.major_name != dept_label:
             entry["standard_major_name"] = record.major_name
 
@@ -987,21 +1122,34 @@ def list_departments(query: str, top_k: int = DEFAULT_SEARCH_LIMIT) -> str:
     print(f"✅ Returning {len(result)} majors from major_detail vector DB")
 
     _log_tool_result("list_departments", f"{len(result)}개 학과 정보 반환")
-    return _format_department_output(raw_query, result, dept_univ_map=dept_univ_map)
+    result_text = _format_department_output(
+        raw_query, result, dept_univ_map=dept_univ_map
+    )
+
+    # [UX] 3글자 이하의 단축어 사용 시 팁 제공
+    if len(raw_query) <= 3:
+        tip_msg = f"\n\n💡 Tip: '{raw_query}' 같은 줄임말보다는 '컴퓨터공학과'처럼 정식 명칭으로 검색하면 더 정확한 결과를 찾을 수 있어요!"
+        result_text += tip_msg
+
+    return result_text
 
 
 @tool
 def get_major_career_info(major_name: str) -> Dict[str, Any]:
     """
-    특정 전공(major)에 대한 상세 정보(진로, 연봉, 자격증, 주요 과목 등)를 조회하는 툴입니다.
+    특정 전공의 상세 정보(진로, 취업률, 연봉, 관련 자격증 등)를 조회하는 툴입니다.
 
-    이 툴을 호출해야 하는 상황 (LLM용 가이드):
-    - 사용자가
-      - "컴퓨터공학과에 대해 알려줘" (단일 학과명 질문의 첫 단계)
-      - "이 학과 나오면 무슨 일 해?", "졸업 후 진로가 어떻게 돼?"
-      - "연봉은 얼마나 받아?"
-      - "어떤 자격증이 필요해?", "무엇을 배워?"
-      와 같이 **특정 학과의 상세 정보**를 물을 때 사용하세요.
+    [중요: 일반 정보 원칙]
+    - 이 툴은 **특정 대학의 데이터가 아닌, 일반적인 데이터**만 제공합니다.
+    - 사용자가 특정 대학과 학과에 대한 정보를 물어보면, 이 툴을 사용하되 **결과를 설명할 때 특정 대학을 지칭하지 마세요.**
+    - "일반적인 컴퓨터공학과의 취업률은 70%입니다." 형태로만 답변해야 합니다.
+
+    [호출 시점]
+    - **취업률, 연봉, 진로, 졸업 후 직업** 관련 질문은 대학명이 포함되어 있어도 무조건 이 툴을 사용하세요.
+    - `get_university_admission_info`는 취업률, 연봉, 직업, 남녀 성비, 관련 자격증, 진출 분야, 관심 과목의 정보를 제공하지 않습니다.
+
+    [필수 처리]
+    - 결과에 `warning_context`가 포함되어 있다면, 답변 시 **반드시 해당 경고 문구**를 포함하여 사용자에게 고지하세요.
 
     파라미터 설명:
     - major_name:
@@ -1128,8 +1276,6 @@ def get_universities_by_department(department_name: str) -> List[Dict[str, str]]
       - "서울에 있는 심리학과 대학 알려줘"
       - "고분자공학과 개설 대학 보여줘"
       와 같이 **특정 학과의 개설 대학 정보**를 요청할 때 사용하세요.
-    - 단일 학과명 질문("컴퓨터공학과")이 들어왔을 때, `get_major_career_info` 호출 후
-      이 툴을 연달아 호출하여 대학 정보도 함께 제공하면 좋습니다.
 
     파라미터 설명:
     - department_name:
@@ -1154,52 +1300,160 @@ def get_universities_by_department(department_name: str) -> List[Dict[str, str]]
         _log_tool_result("get_universities_by_department", "학과명 누락 - 오류 반환")
         return result
 
-    # 전공 검색 (정확한 매칭 우선)
-    matches: List[Any] = []
-    direct = _lookup_major_by_name(query)
+    from backend.db.connection import get_db
+    from backend.db.models import Major, MajorCategory
+    import json
 
-    if direct:
-        matches.append(direct)
-    else:
-        # 정확히 일치하는 학과가 없으면 유사 학과 검색
-        matches = _find_majors(query, limit=5)
-
-    # 대학 정보 수집
+    db = next(get_db())
     aggregated: List[Dict[str, str]] = []
-    for record in matches:
-        entries = _extract_university_entries(record)
-        if entries:
-            aggregated.extend(entries)
-        # 최대 50개까지만 수집
-        if len(aggregated) >= MAX_UNIVERSITY_RESULTS:
-            break
+    seen = set()
+
+    try:
+        # =========================================================
+        # 1. Vector DB Semantic Search (의미 기반 대분류 확장)
+        # =========================================================
+        vector_matched_names = []
+        try:
+            from backend.rag.vectorstore import get_major_category_vectorstore
+
+            vectorstore = get_major_category_vectorstore()
+            # 검색어와 의미적으로 유사한 학과명 상위 20개 검색
+            docs = vectorstore.similarity_search(query, k=20)
+
+            vector_matched_names = [d.page_content for d in docs]
+            print(f"Vector Search found related categories: {vector_matched_names}")
+        except Exception as e:
+            print(f"   ⚠️  Vector Search failed: {e}")
+
+        # =========================================================
+        # 2. SQL 키워드 검색 (기본)
+        # =========================================================
+        # 2-1. 1차 검색: 정확한 포함 (LIKE %query%)
+        major_records = (
+            db.query(Major).filter(Major.major_name.like(f"%{query}%")).all()
+        )
+        print(f"Primary Search found {len(major_records)} records")
+
+        # 2-2. 2차 검색: 접미사 제거 후 확장 (Keyword Expansion)
+        normalized_query = _normalize_major_key(query)
+        keyword = (
+            normalized_query.replace("학과", "").replace("전공", "").replace("부", "")
+        )
+
+        if len(keyword) >= 2 and keyword != query:
+            print(f"Expanding search with keyword: '{keyword}'")
+            secondary_records = (
+                db.query(Major).filter(Major.major_name.like(f"%{keyword}%")).all()
+            )
+            print(f"Secondary Search found {len(secondary_records)} records")
+
+            # 중복 방지를 위해 기존 레코드에 추가
+            existing_ids = {r.id for r in major_records}
+            for sr in secondary_records:
+                if sr.id not in existing_ids:
+                    major_records.append(sr)
+                    existing_ids.add(sr.id)
+
+        # 2-3. [New] Vector 매칭 결과 추가 (Semantic Expansion)
+        if vector_matched_names:
+            print(f"Applying Vector matches: {vector_matched_names}")
+            # vector_matched_names에 있는 '표준 학과명'을 가진 Major 레코드를 조회
+            vector_records = (
+                db.query(Major).filter(Major.major_name.in_(vector_matched_names)).all()
+            )
+
+            existing_ids = {r.id for r in major_records}
+            for vr in vector_records:
+                if vr.id not in existing_ids:
+                    major_records.append(vr)
+                    existing_ids.add(vr.id)
+
+        # =========================================================
+        # 3. 대학 정보 파싱 및 추출
+        # =========================================================
+        for record in major_records:
+            if not record.university:
+                continue
+
+            try:
+                # JSON 컬럼 파싱 (record.university는 LONGTEXT로 저장된 JSON string)
+                univ_list = json.loads(record.university)
+                if not isinstance(univ_list, list):
+                    continue
+
+                for item in univ_list:
+                    school = (item.get("schoolName") or "").strip()
+                    major_name = (item.get("majorName") or "").strip()
+                    campus = (
+                        item.get("campus_nm") or item.get("campusNm") or ""
+                    ).strip()
+                    area = (item.get("area") or "").strip()
+                    url = (item.get("schoolURL") or "").strip()
+
+                    if not school:
+                        continue
+
+                    # 학과명이 비어있으면 표준 학과명 사용
+                    dept_label = major_name if major_name else record.major_name
+
+                    # 중복 제거 (대학, 학과, 캠퍼스)
+                    dedup_key = (school, dept_label, campus)
+                    if dedup_key in seen:
+                        continue
+                    seen.add(dedup_key)
+
+                    entry = {
+                        "university": school,
+                        "college": campus or area or "",
+                        "department": dept_label,
+                        "url": url,
+                        "standard_major_name": record.major_name,
+                    }
+                    if area:
+                        entry["area"] = area
+                    if campus:
+                        entry["campus"] = campus
+
+                    aggregated.append(entry)
+
+            except json.JSONDecodeError:
+                print(f"⚠️  JSON Decode Error in Major ID {record.id}")
+                continue
+
+    except Exception as e:
+        print(f"❌ SQL Query Error: {e}")
+        _log_tool_result("get_universities_by_department", f"SQL Error: {e}")
+        return [
+            {
+                "error": "db_error",
+                "message": "데이터베이스 조회 중 오류가 발생했습니다.",
+            }
+        ]
+    finally:
+        db.close()
+
+    # 결과 제한
+    MAX_UNIVERSITY_RESULTS = 1000  # 검색 결과 최대 개수
+    aggregated = aggregated[:MAX_UNIVERSITY_RESULTS]
 
     # 검색 결과가 없는 경우
     if not aggregated:
-        print(
-            f"⚠️  WARNING: No universities found offering '{query}' in major_detail.json"
-        )
+        print(f"⚠️  WARNING: No universities found offering '{query}' in SQL DB")
         result = [
             {
                 "error": "no_results",
-                "message": f"'{query}' 학과를 개설한 대학 정보를 major_detail 데이터에서 찾을 수 없습니다.",
-                "suggestion": "학과명을 정확히 입력하거나 list_departments 툴로 사용 가능한 전공명을 먼저 확인하세요.",
+                "message": f"'{query}' 학과를 개설한 대학 정보를 찾을 수 없습니다.",
+                "suggestion": "학과명을 정확히 입력하거나 다른 키워드로 검색해보세요.",
             }
         ]
         _log_tool_result("get_universities_by_department", "검색 결과 없음 - 오류 반환")
         return result
 
-    # 결과 로깅
-    print(f"✅ Found {len(aggregated)} university rows for '{query}'")
-    for entry in aggregated[:UNIVERSITY_PREVIEW_COUNT]:
-        print(
-            f"   - {entry.get('university')} / {entry.get('college')} / "
-            f"{entry.get('department')}"
-        )
-
     _log_tool_result(
-        "get_universities_by_department", f"총 {len(aggregated)}건 대학 정보 반환"
+        "get_universities_by_department",
+        f"총 {len(aggregated)}건 대학 정보 반환 (SQL Source)",
     )
+    print(f"✅ Retrieved {len(aggregated)} universities for '{query}'")
     return aggregated
 
 
@@ -1225,36 +1479,31 @@ def get_search_help() -> str:
 
 
 @tool
-def get_university_admission_info(
-    university_name: str, department_name: str = ""
-) -> Dict[str, Any]:
+def get_university_admission_info(university_name: str) -> Dict[str, Any]:
     """
-    특정 대학의 입시 정보(정시컷, 수시컷 등)를 조회하는 툴입니다.
+    특정 대학의 '입시(입학) 정보'를 조회하는 툴입니다.
+    수시/정시 등급 컷, 경쟁률, 모집 요강 등 '대학 입학'과 관련된 정보만 제공합니다.
 
-    이 툴을 호출해야 하는 상황 (LLM용 가이드):
-    - 사용자가
-      - "서울대학교 컴퓨터공학과 정시컷 알려줘"
-      - "연세대학교 수시컷이 궁금해"
-      - "고려대학교 입시 결과 보여줘"
-      - "OO대학교 OO학과 입시 정보 알려줘"
-      와 같이 **특정 대학의 입시 정보**를 요청할 때 사용하세요.
+    [호출 시점]
+    - 사용자가 "서울대 컴공 정시컷", "연세대 수시 등급" 등 **입시/입학** 정보를 물을 때 사용하세요.
+    - 입력으로 받은 대학명만 사용하며, 학과명은 무시합니다.
+
+    [주의 - 사용 금지 케이스]
+    - **취업률, 연봉, 진로, 졸업 후 직업** 등 졸업 후 정보는 이 툴에서 절대 제공하지 않습니다.
+      이 경우 대학명이 포함되어 있어도 무조건 `get_major_career_info`를 사용하세요.
 
     파라미터 설명:
     - university_name:
         입시 정보를 조회할 대학명.
         예: "서울대학교", "연세대학교", "고려대학교"
-    - department_name:
-        (선택) 학과명. 제공되면 응답 메시지에 포함됩니다.
-        예: "컴퓨터공학과", "경영학과"
     """
     query = (university_name or "").strip()
-    dept = (department_name or "").strip()
 
     _log_tool_start(
         "get_university_admission_info",
-        f"대학 입시 정보 조회 - university='{query}', department='{dept}'",
+        f"대학 입시 정보 조회 - university='{query}'",
     )
-    print(f"✅ Using get_university_admission_info tool for: '{query}' / '{dept}'")
+    print(f"✅ Using get_university_admission_info tool for: '{query}'")
 
     # 입력 검증
     if not query:
@@ -1272,7 +1521,6 @@ def get_university_admission_info(
     # 대학 정보가 없는 경우
     if university_info is None:
         print(f"⚠️  WARNING: No admission data found for '{query}'")
-        # ...(기존 fallback 로직 유지)...
         similar_universities = search_universities(query)
         if similar_universities:
             similar_names = [u["university"] for u in similar_universities[:5]]
@@ -1293,145 +1541,18 @@ def get_university_admission_info(
         )
         return result
 
-    # =========================================================
-    # [Smart Fallback] 학과 존재 여부 검증 및 유사 학과 추천
-    # =========================================================
-
-    # 1. 해당 대학의 모든 학과 목록 조회
-    available_majors = _get_majors_for_university(university_info["university"])
-
-    # 2. 학과명이 제공되었다면 검증 진행
-    validation_message = ""
-    suggested_majors = []
-
-    if dept:
-        # 정확히 일치하는 학과가 있는지 확인
-        # (공백/특수문자 제거 후 비교)
-        target_clean = _normalize_major_key(dept)
-        found = False
-
-        for m in available_majors:
-            if _normalize_major_key(m) == target_clean:
-                found = True
-                break
-
-        if not found:
-            print(
-                f"⚠️  Major '{dept}' not found in '{university_info['university']}'. Searching for similar majors..."
-            )
-
-            # 유사 학과 검색 (SequenceMatcher)
-            similarities = []
-            for m in available_majors:
-                # 간단한 유사도 계산
-                ratio = SequenceMatcher(
-                    None, target_clean, _normalize_major_key(m)
-                ).ratio()
-                # 포함 관계도 고려 (예: "소프트웨어" in "소프트웨어학부")
-                if (
-                    target_clean in _normalize_major_key(m)
-                    or _normalize_major_key(m) in target_clean
-                ):
-                    ratio += 0.2  # 가중치
-
-                if ratio > 0.4:  # 임계값
-                    similarities.append((ratio, m))
-
-            # 유사도 순 정렬
-            similarities.sort(key=lambda x: x[0], reverse=True)
-            suggested_majors = [item[1] for item in similarities[:3]]
-
-            if suggested_majors:
-                suggestions_str = ", ".join([f"'{m}'" for m in suggested_majors])
-                validation_message = (
-                    f"\n\n⚠️ **주의**: '{university_info['university']}'에서 '{dept}'라는 정확한 학과명을 찾을 수 없습니다. "
-                    f"혹시 **{suggestions_str}** 등을 찾으시나요? 아래 링크에서 정확한 모집 요강을 확인해주세요."
-                )
-            else:
-                # =========================================================
-                # [Global Major Lookup] 전역 데이터에서 대학 매핑 확인
-                # =========================================================
-                print(
-                    f"⚠️  Similarity search failed. Trying Global Major Lookup for '{dept}'..."
-                )
-
-                # 1. 전역 학과명으로 레코드 검색
-                global_record = _lookup_major_by_name(dept)
-                global_found_dept = None
-
-                if global_record:
-                    # 2. 해당 학과 레코드에 타겟 대학이 있는지 확인
-                    entries = _extract_university_entries(global_record)
-                    # 공백 제거 후 비교를 위해 타겟 대학명 정규화
-                    target_univ_clean = university_info["university"].replace(" ", "")
-
-                    for entry in entries:
-                        entry_univ = entry.get("university", "").replace(" ", "")
-                        # 대학명 포함 여부 확인 (예: "한양대학교[본교]" vs "한양대학교")
-                        if (
-                            target_univ_clean in entry_univ
-                            or entry_univ in target_univ_clean
-                        ):
-                            global_found_dept = entry.get("department")
-                            break
-
-                if global_found_dept:
-                    print(
-                        f"✅ Global Lookup Found: '{global_found_dept}' in '{university_info['university']}'"
-                    )
-                    validation_message = (
-                        f"\n\n⚠️ **주의**: '{dept}' 명칭으로는 '{university_info['university']}' 데이터를 찾지 못했지만, "
-                        f"관련된 **'{global_found_dept}'**가 확인되었습니다. 이 학과 정보를 찾으시는지 확인해 주세요."
-                    )
-                    # LLM에게 제안할 학과 명시
-                    suggested_majors.append(global_found_dept)
-                else:
-                    print(
-                        f"❌ Global Lookup Failed for '{dept}' in '{university_info['university']}'"
-                    )
-                    validation_message = (
-                        f"\n\n⚠️ **주의**: '{university_info['university']}' 데이터베이스에서 '{dept}' 개설 여부가 확인되지 않습니다. "
-                        "아래 링크를 통해 정확한 정보를 직접 확인해주시기 바랍니다."
-                    )
-        else:
-            print(
-                f"✅ Verified major '{dept}' exists in '{university_info['university']}'"
-            )
-
-    # 성공 응답 구성
-    response: Dict[str, Any] = {
+    # 간단한 결과 반환 (학과 로직 제거)
+    result = {
         "university": university_info["university"],
-        "code": university_info["code"],
-        "url": university_info["url"],
-        "source": "KCUE (한국대학교육협의회)",
-        "message": f"[{university_info['university']} 입시정보 확인하기]({university_info['url']})",
+        "url": university_info.get("url", ""),
+        "message": (
+            f"'{university_info['university']}'의 입시 정보는 아래 링크에서 확인하실 수 있습니다.\n"
+            "세부 학과에 대한 모집 요강 및 입시 결과는 해당 입학처 홈페이지를 참고해주세요."
+        ),
     }
-
-    # 학과명이 제공된 경우 메시지 포맷팅
-    if dept:
-        response["department"] = dept
-        # 검증 실패 메시지가 있으면 덧붙임
-        if validation_message:
-            response["message"] += validation_message
-            # 유사 학과가 있다면 그 학과명으로 된 구체적인 안내 멘트 추가
-            if suggested_majors:
-                response["suggested_majors"] = suggested_majors
-        else:
-            response["message"] = (
-                f"[{university_info['university']} {dept} 입시정보 확인하기]({university_info['url']})"
-            )
-
-    # 안내 메시지 추가
-    response["guide"] = (
-        "입시제도에 대해서는 해당 링크 클릭 후 좌측 메뉴의 '평가기준 및 입시결과'를 참고해주세요!"
-    )
-
-    print(f"✅ Found admission info for '{university_info['university']}'")
-    print(f"   URL: {university_info['url']}")
 
     _log_tool_result(
         "get_university_admission_info",
-        f"{university_info['university']} 입시 정보 URL 반환",
+        f"대학 입시 URL 반환: {university_info.get('url')}",
     )
-
-    return response
+    return result

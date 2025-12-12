@@ -152,6 +152,15 @@ python unigo/manage.py migrate
 # backend/db/seed_all.py 실행 -> DB 테이블에 데이터 삽입
 python -m backend.db.seed_all
 
+# 4. 전공 상세 정보 벡터 DB 저장 (텍스트 임베딩)
+python backend/scripts/ingest_majors.py
+
+# 5. [New] 학과 대분류 벡터 DB 저장 (검색어 확장용)
+python backend/scripts/ingest_major_categories.py
+
+# 6. 입시 결과(수시/정시) 데이터 적재 (MySQL)
+python backend/scripts/ingest_admissions.py
+
 ```
 
 ## 🧠 벡터 데이터베이스 설정 (Pinecone)
@@ -199,8 +208,9 @@ python -m backend.rag.build_major_index
 #### 사용 가능한 툴 (Tools)
 
 1. `list_departments`: 학과 목록 검색
-2. `get_universities_by_department`: 학과별 개설 대학 조회
-3. `get_major_career_info`: 전공별 진출 직업/분야 정보
+2.  - `get_universities_by_department(department_name)`: 특정 학과 개설 대학 목록 조회 (SQL + Vector Semantic Search)
+    - **Vector Search**: "컴퓨터" 검색 시 "소프트웨어", "인공지능" 등 의미적으로 유사한 학과분류를 자동 확장하여 검색
+  - `get_major_career_info(major_name)`: 학과 진로/취업률/연봉 정보 조회 (SQL)
 4. `get_university_admission_info`: 대학별 입시 정보
 5. `get_search_help`: 검색 도움말
 
@@ -306,6 +316,21 @@ MAJOR_DOC_WEIGHTS = {
 - **[실행 가이드](docs/guide.md)**: 상세한 설치 및 실행 방법
 - **[개발 계획](docs/plans.md)**: 프로젝트 개발 계획
 - **[수정 로그](docs/fixed_log.md)**: 주요 수정 사항 기록
+
+## 🧪 LLM 기능 검증
+
+Django 서버를 실행하지 않고 로컬에서 LLM 로직(툴 호출, 전공 추천 등)을 독립적으로 테스트할 수 있습니다.
+
+```bash
+# 테스트 스크립트 실행
+python test_llm.py
+```
+
+주요 검증 항목:
+- **Hallucination 방지**: 대학-학과 매핑이 정확한지 확인 (예: 한양대 컴공 vs 컴퓨터소프트웨어학부)
+- **중복 추천 방지**: 전공 추천 결과에 중복된 학과가 없는지 확인
+- **입시 정보 검색**: 정확한 학과명이 없을 때 유사 학과 추천(Fallback) 동작 확인
+- **SQL 검색 전환 검증**: `get_universities_by_department`가 SQL DB를 사용하여 한양대 "컴퓨터소프트웨어학부" 등을 정확히 찾는지 확인 (`test_llm.py`)
 
 ## 🐛 문제 해결
 
