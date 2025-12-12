@@ -12,21 +12,27 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file
+load_dotenv(BASE_DIR.parent / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-&frm_sr)y46v=#*7w6k7-k$tak#b#oe+md4!71))8s)t&x!vc*"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = (
+    os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+)
 
 
 # Application definition
@@ -71,14 +77,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "unigo.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# Load .env file
-from dotenv import load_dotenv
-
-load_dotenv(BASE_DIR.parent / ".env")
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
@@ -172,25 +170,20 @@ LOGGING = {
             "backupCount": 10,
             "formatter": "verbose",
         },
-        "console": {
-            "level": "DEBUG",
-            "class": "logging.StreamHandler",
-            "formatter": "simple",
-        },
     },
     "loggers": {
         "django": {
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "INFO",
             "propagate": True,
         },
         "unigo_app": {
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "DEBUG",
             "propagate": False,
         },
         "django.db.backends": {
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "DEBUG",
         },
     },

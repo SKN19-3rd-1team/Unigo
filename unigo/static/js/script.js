@@ -34,9 +34,7 @@ if (loginConfirmBtn) {
 
         fetch("/api/auth/login", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: getPostHeaders(),
             body: JSON.stringify({
                 username: emailOrId,
                 password: password
@@ -116,9 +114,7 @@ if (signUpConfirmBtn) {
         // 회원가입 API 호출
         fetch("/api/auth/signup", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: getPostHeaders(),
             body: JSON.stringify({
                 username: username,
                 email: email,

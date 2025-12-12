@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/setting/check-username', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getPostHeaders(),
                 body: JSON.stringify({ username })
             });
 
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/setting/change-nickname', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getPostHeaders(),
                 body: JSON.stringify({ username: newUsername, password })
             });
 
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/setting/change-password', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getPostHeaders(),
                 body: JSON.stringify({
                     current_password: currentPassword,
                     new_password: newPassword
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/setting/delete', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getPostHeaders(),
                 body: JSON.stringify({
                     username: username,
                     password: password
