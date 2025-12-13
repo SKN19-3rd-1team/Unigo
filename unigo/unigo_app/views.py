@@ -60,8 +60,6 @@ def chat(request):
              custom_image_url = request.user.profile.custom_image.url
 
         # UserProfile에서 캐릭터 가져오기
-
-        # UserProfile에서 캐릭터 가져오기
         try:
             character = request.user.profile.character
         except Exception:
