@@ -677,3 +677,162 @@ html {
     transform: translateY(-3px);
     background: #2E2235;
 }
+
+/* ----------------------
+    Conversation List Styles
+    (Ported from docs/design/chat/styles.css)
+----------------------*/
+/* 대화 목록 템플릿 (우측 패널) */
+.hidden {
+  display: none;
+}
+
+.conv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.conv-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 4px 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.conv-list-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c2c2c;
+    letter-spacing: -0.3px;
+}
+
+.conv-back-btn {
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.conv-back-btn:hover {
+    background: #f8f8f8;
+    border-color: #b0b0b0;
+    color: #333;
+}
+
+.conv-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    background: transparent;
+}
+
+.conv-list-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.conv-list-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.conv-list-scroll::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 3px;
+}
+
+.conv-list-scroll::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b0;
+}
+
+.conv-list-ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.conv-list-ul li {
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e5e8eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 15px;
+    font-weight: 500;
+    color: #2d3748;
+    line-height: 1.6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+}
+
+.conv-list-ul li::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.conv-list-ul li:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%);
+    border-color: #c5cad1;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.12);
+    transform: translateY(-2px);
+}
+
+.conv-list-ul li:hover::before {
+    opacity: 1;
+}
+
+.conv-list-ul li:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* 로드된 대화 정보 */
+.conv-loaded {
+    padding: 16px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.conv-loaded .conv-list-header {
+    align-items: flex-start;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 12px;
+}
+
+.conv-loaded #loaded-conv-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c2c2c;
+    letter-spacing: -0.2px;
+}
+
+.conv-loaded #loaded-conv-info {
+    margin-top: 8px;
+    color: #888;
+    font-size: 13px;
+    line-height: 1.4;
+}

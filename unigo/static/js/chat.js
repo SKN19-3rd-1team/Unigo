@@ -440,7 +440,17 @@ const restoreResultPanel = () => {
     const savedContent = sessionStorage.getItem(STORAGE_KEY_RESULT_PANEL);
     if (savedContent) {
         resultCard.innerHTML = savedContent;
+        return;
     }
+
+    const defaultHtml = `
+        제가 당신에게 추천드리는 학과들로는 생명공학, 컴퓨터공학, AI융합전공, 데이터사이언스과, 소프트웨어공학과 등이 있으며 추가적으로 물리학과, 천문학 등도 고려하실 수 있습니다.
+        <br><br>
+        이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
+    `;
+
+    resultCard.innerHTML = defaultHtml;
+    sessionStorage.setItem(STORAGE_KEY_RESULT_PANEL, defaultHtml);
 };
 
 // -- Main Chat Logic --
@@ -595,11 +605,27 @@ const showConversationList = async () => {
     const resultCard = document.querySelector('.result-card');
     if (!resultCard) return;
 
+    // 로그인 확인
+    try {
+        const authResp = await fetch('/api/auth/me');
+        const authData = await authResp.json();
+
+        if (!authData.is_authenticated) {
+            resultCard.innerHTML = '<p>게스트 사용자는 저장된 대화를 불러올 수 없습니다. 로그인 후 이용해주세요.</p>';
+            return;
+        }
+    } catch (e) {
+        console.error('Auth check failed:', e);
+        return;
+    }
+
     // 로그인 사용자에 한해 대화 목록 가져오기
     try {
+        // 대화 목록 요청
         const resp = await fetch('/api/chat/list');
         if (!resp.ok) throw new Error('Failed to fetch conversations');
 
+        // 대화 목록 렌더링
         const data = await resp.json();
         const convs = data.conversations || [];
 
@@ -608,20 +634,26 @@ const showConversationList = async () => {
             return;
         }
 
-        // 목록 HTML 생성
-        let html = '<div class="conv-list"><h3>과거 대화 목록</h3><ul style="list-style:none;padding:0;">';
+        // 대화 목록 템플릿 채우기
+        const tpl = document.getElementById('conv-list-template');
+        const clone = tpl.content.cloneNode(true);
+        const ul = clone.querySelector('.conv-list-ul');
+
         convs.forEach(c => {
-            html += `<li style="padding:8px 6px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${c.id}">`;
-            html += `<strong>${c.title || '(제목 없음)'}</strong><br>`;
-            html += `<small style="color:#666">${c.updated_at.split('T')[0]} · ${c.message_count} messages</small><br>`;
-            html += `<span style="color:#333">${c.last_message_preview || ''}</span>`;
-            html += `</li>`;
+            const li = document.createElement('li');
+            li.style.padding = '8px 6px';
+            li.style.borderBottom = '1px solid #eee';
+            li.style.cursor = 'pointer';
+            li.setAttribute('data-id', c.id);
+
+            li.innerHTML = `<strong>${c.title || '(제목 없음)'}</strong><br><small style="color:#666">${c.updated_at.split('T')[0]} · ${c.message_count} messages</small><br><span style="color:#333">${c.last_message_preview || ''}</span>`;
+            ul.appendChild(li);
         });
-        html += '</ul><button id="conv-back-btn" style="margin-top:8px;">뒤로</button></div>';
 
-        resultCard.innerHTML = html;
+        resultCard.innerHTML = '';
+        resultCard.appendChild(clone);
 
-        // 각 대화 항목에 클릭 리스너 추가
+        // 각 내역 항목 클릭 리스너
         const items = resultCard.querySelectorAll('li[data-id]');
         items.forEach(it => {
             it.addEventListener('click', async (e) => {
@@ -630,8 +662,9 @@ const showConversationList = async () => {
             });
         });
 
-        const backBtn = document.getElementById('conv-back-btn');
-        if (backBtn) backBtn.addEventListener('click', () => restoreResultPanel());
+        // 닫기 버튼 리스너
+        const backBtn = resultCard.querySelector('.conv-back-btn');
+        if (backBtn) backBtn.addEventListener('click', (e) => { e.preventDefault(); restoreResultPanel(); });
 
     } catch (e) {
         console.error('Error loading conversation list:', e);
@@ -678,15 +711,7 @@ const loadConversation = async (convId) => {
         // 온보딩 상태 업데이트: 완료로 표시하여 온보딩 프롬프트 방지
         onboardingState.isComplete = true;
         saveState();
-
-        // 오른쪽 패널을 불러온 세션 제목으로 업데이트
-        const resultCard = document.querySelector('.result-card');
-        if (resultCard) resultCard.innerHTML = `<h3>불러온 대화: ${conv.title}</h3><p>${conv.messages.length}개의 메시지를 불러왔습니다.</p><button id="conv-back-btn2">뒤로</button>`;
-        const backBtn = document.getElementById('conv-back-btn2');
-        if (backBtn) backBtn.addEventListener('click', () => restoreResultPanel());
-
-        console.log('Conversation loaded with ID:', currentConversationId);
-
+        
     } catch (e) {
         console.error('Error loading conversation:', e);
         alert('세션 불러오기에 실패했습니다. 콘솔을 확인하세요.');
