@@ -27,6 +27,7 @@ if frontend_dir not in sys.path:
 
 try:
     from backend.main import run_mentor, run_major_recommendation
+    from backend.rag.tools import summarize_conversation_history
 except ImportError as e:
     # ... (Error handling code kept brief for this tool call, assumed user already saw it) ...
     logger.error(f"Backend import failed: {e}")
@@ -895,4 +896,31 @@ def onboarding_api(request):
 
     except Exception as e:
         logger.error(f"Error in onboarding_api: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ============================================
+# Chat Summarization API
+# ============================================
+@csrf_exempt
+def summarize_conversation(request):
+    """
+    대화 요약 API
+    - LangChain과 LLM을 사용하여 대화 내용을 요약합니다.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        chat_history = data.get("history", [])
+
+        if not chat_history:
+            return JsonResponse({"error": "Empty chat history"}, status=400)
+
+        summary = summarize_conversation_history(chat_history)
+        return JsonResponse({"summary": summary})
+
+    except Exception as e:
+        logger.error(f"Error in summarize_chat: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)

@@ -993,6 +993,72 @@ def _format_department_output(
     return "\n".join(lines)
 
 
+# ==================== 대화 기록 요약 ====================
+def _format_conversation_history(
+    history: List[Dict[str, str]]
+) -> str:
+    """
+    대화 기록을 텍스트 형태로 포맷팅합니다.
+
+    Args:
+        history: 대화 기록 리스트 (각 항목은 {"role": "user"/"assistant", "content": "메시지 내용"} 형태)
+
+    Returns:
+        포맷팅된 대화 기록 문자열
+    """
+    lines = []
+    # 대화 기록 포맷팅
+    for turn in history:
+        # 역할과 내용 추출
+        role = turn.get("role", "user")
+        content = turn.get("content", "").strip()
+
+        # 역할에 따라 접두사 추가
+        if role == "user":
+            lines.append(f"User: {content}")
+        else:
+            lines.append(f"Assistant: {content}")
+    return "\n".join(lines)
+
+
+def summarize_conversation_history(
+    history: List[Dict[str, str]]
+) -> str:
+    """
+    대화 기록을 요약하여 간결한 형태로 반환합니다.
+
+    Args:
+        history: 대화 기록 리스트 (각 항목은 {"role": "user"/"assistant", "content": "메시지 내용"} 형태)
+
+    Returns:
+        요약된 대화 기록 문자열
+    """
+    llm = get_llm()
+
+    prompt = ChatPromptTemplate.from_template("""
+    다음은 사용자와 AI의 대화 기록이다.
+
+    ⚠️ 주의:
+    - 대화 내용을 그대로 나열하지 말 것
+    - User / Assistant 형식을 사용하지 말 것
+    - 핵심만 추려 하나의 요약문으로 작성할 것
+
+    요약 형식:
+    - 대화 주제:
+    - 탐색 목적:
+    - 현재까지 정리된 내용:
+    - 다음에 하면 좋은 것:
+
+    대화 기록:
+    {conversation_history}
+    """)
+
+    chain = prompt | llm | StrOutputParser()
+    history_text = _format_conversation_history(history)
+    result = chain.invoke({"conversation_history": history_text})
+    return result.strip()
+
+
 # ==================== LangChain Tools ====================
 
 

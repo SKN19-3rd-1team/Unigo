@@ -712,6 +712,60 @@ const loadConversation = async (convId) => {
     }
 };
 
+
+// -- 대화 내역 요약 --
+
+const summarizeConversation = async () => {
+    if (chatHistory.length === 0) {
+        alert('요약할 대화 내역이 없습니다.');
+        return;
+    }
+
+    const resultCard = document.querySelector('.result-card');
+
+    try {
+        // 요약 요청 직후 로딩 표시
+        if (resultCard) {
+            resultCard.innerHTML = `
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-loading">
+                <div class="spinner"></div>
+                요약 중입니다...
+            </div>
+            `;
+        }
+
+        // 요약 API 호출
+        const resp = await fetch('/api/chat/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ history: chatHistory })
+        });
+        if (!resp.ok) throw new Error('Failed to summarize conversation');
+
+        // 결과 표시
+        const data = await resp.json();
+
+        // 요약 결과 오른쪽 패널에 렌더링
+        if (resultCard) {
+            resultCard.innerHTML = `
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-content">
+                ${data.summary.replace(/\n/g, '<br>')}
+            </div>
+            `;
+            sessionStorage.setItem(STORAGE_KEY_RESULT_PANEL, resultCard.innerHTML);
+        }
+    } catch (e) {
+        console.error('Error summarizing conversation:', e);
+        alert('요약에 실패했습니다.');
+    }
+};
+
 // -- Event Listeners --
 
 // New Chat Button (using aria-label="새 채팅")
@@ -724,6 +778,12 @@ if (newChatBtn) {
 const folderBtn = document.querySelector('.action-btn[aria-label="폴더"]');
 if (folderBtn) {
     folderBtn.addEventListener('click', showConversationList);
+}
+
+// Summarize Button (using aria-label="요약")
+const summarizeBtn = document.querySelector('.action-btn[aria-label="정보"]');
+if (summarizeBtn) {
+    summarizeBtn.addEventListener('click', summarizeConversation);
 }
 
 if (sendBtn) {
