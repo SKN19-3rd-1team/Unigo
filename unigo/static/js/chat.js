@@ -527,6 +527,8 @@ const handleSubmit = async () => {
     chatInput.focus();
 };
 
+// -- Reset Chat Logic --
+
 const resetChat = async () => {
     if (!confirm("대화 내용을 모두 지우고 처음부터 다시 시작하시겠습니까?")) return;
 
@@ -591,16 +593,8 @@ const resetChat = async () => {
     startOnboardingStep();
 };
 
-// -- Event Listeners --
+// -- Conversation List Logic --
 
-// New Chat Button (using aria-label="새 채팅")
-const newChatBtn = document.querySelector('.action-btn[aria-label="새 채팅"]');
-if (newChatBtn) {
-    newChatBtn.addEventListener('click', resetChat);
-}
-
-// Folder / History Button (using aria-label="폴더")
-const folderBtn = document.querySelector('.action-btn[aria-label="폴더"]');
 const showConversationList = async () => {
     const resultCard = document.querySelector('.result-card');
     if (!resultCard) return;
@@ -718,6 +712,16 @@ const loadConversation = async (convId) => {
     }
 };
 
+// -- Event Listeners --
+
+// New Chat Button (using aria-label="새 채팅")
+const newChatBtn = document.querySelector('.action-btn[aria-label="새 채팅"]');
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', resetChat);
+}
+
+// Folder / History Button (using aria-label="폴더")
+const folderBtn = document.querySelector('.action-btn[aria-label="폴더"]');
 if (folderBtn) {
     folderBtn.addEventListener('click', showConversationList);
 }
