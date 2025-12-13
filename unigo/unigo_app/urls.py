@@ -25,6 +25,7 @@ urlpatterns = [
     path("api/setting/change-nickname", views.change_nickname, name="change_nickname"),
     path("api/setting/change-password", views.change_password, name="change_password"),
     path("api/setting/update-character", views.update_character, name="update_character"),
+    path("api/setting/upload-character-image", views.upload_character_image, name="upload_character_image"),
     path("api/setting/delete", views.delete_account, name="delete_account"),
     
     # Feature API

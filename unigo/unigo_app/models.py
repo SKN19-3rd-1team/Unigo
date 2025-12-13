@@ -319,6 +319,16 @@ class UserProfile(models.Model):
         default='rabbit', # 기본값: 토끼
         help_text="사용자가 선택한 페르소나 캐릭터 (rabbit, bear, fox, etc.)"
     )
+    custom_image = models.ImageField(
+        upload_to='character_images/',
+        null=True,
+        blank=True,
+        help_text="사용자가 업로드한 커스텀 캐릭터 이미지"
+    )
+    use_custom_image = models.BooleanField(
+        default=False,
+        help_text="커스텀 이미지 사용 여부 (캐릭터 선택 시 False, 이미지 업로드 시 True)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
