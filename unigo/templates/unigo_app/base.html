@@ -141,6 +141,7 @@
         </div>
     </div>
 
+    <script src="{% static 'js/csrf.js' %}"></script>
     <script src="{% static 'js/script.js' %}"></script>
     <script>
         // Inline script for duplicate checks
@@ -176,6 +177,7 @@
                     try {
                         const res = await fetch('/api/auth/check-email', {
                             method: 'POST',
+                            headers: getPostHeaders(),
                             body: JSON.stringify({ email })
                         });
                         const data = await res.json();
@@ -205,6 +207,7 @@
                     try {
                         const res = await fetch('/api/auth/check-username', {
                             method: 'POST',
+                            headers: getPostHeaders(),
                             body: JSON.stringify({ username })
                         });
                         const data = await res.json();
