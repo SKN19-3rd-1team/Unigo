@@ -26,21 +26,33 @@ const ONBOARDING_QUESTIONS = [
     },
     {
         key: "career_goal",
-        label: "장래 희망",
-        prompt: "장래 희망이나 관심 있는 직업 분야가 있나요? 구체적인 직업명이 아니어도 괜찮아요.",
-        placeholder: "예: 인공지능 개발자, 교사, 마케터, 창업"
+        label: "관심 활동 유형",
+        prompt: "구체적인 직업은 몰라도 좋아요. 나중에 어떤 **스타일의 일**을 하고 싶으신가요? (예: 남을 돕는 일, 무언가를 분석하는 일, 창의적인 것을 만드는 일, 몸을 움직이는 일 등)",
+        placeholder: "예: 사람들과 소통하며 돕는 일, 데이터를 분석해서 문제를 해결하는 일"
     },
     {
         key: "strengths",
-        label: "성격 및 장점",
-        prompt: "본인의 성격이나 장점은 무엇이라고 생각하나요? (예: 논리적이다, 상상력이 풍부하다, 꼼꼼하다)",
-        placeholder: "예: 호기심이 많고 논리적으로 생각하는 것을 좋아해요."
+        label: "선호 환경 및 성향",
+        prompt: "어떤 상황에서 가장 즐거움이나 보람을 느끼나요? (예: 어려운 문제를 풀었을 때, 친구의 고민을 해결해줬을 때, 조립 설명서를 보고 완벽하게 만들었을 때)",
+        placeholder: "예: 혼자 조용히 깊게 생각할 때, 팀원들과 함께 목표를 달성했을 때"
     },
     {
         key: "career_field",
-        label: "희망 진출 분야",
-        prompt: "마지막으로, 졸업 후 어떤 분야에서 일하고 싶으신가요? (예: IT, 의료, 금융, 예술, 교육 등)",
-        placeholder: "예: IT 플랫폼 기업, 병원, 은행, 방송국"
+        label: "중요하게 생각하는 가치",
+        prompt: "대학 생활이나 미래 직업에서 가장 중요하게 생각하는 것은 무엇인가요? (예: 안정적인 삶, 높은 연봉, 새로운 도전, 사회적 기여)",
+        placeholder: "예: 안정적인 직업이 최고예요, 돈을 많이 벌고 싶어요, 사회에 도움이 되고 싶어요"
+    },
+    {
+        key: "topics",
+        label: "평소 관심 주제",
+        prompt: "평소 유튜브나 뉴스, 책에서 어떤 **주제**를 주로 찾아보시나요? (예: 역사, 우주, 연예, 환경, 기계 등)",
+        placeholder: "예: 우주 다큐멘터리, 최신 IT 기기 리뷰, 심리 테스트"
+    },
+    {
+        key: "learning_style",
+        label: "이론 탐구 vs 실전 활동",
+        prompt: "책상에 앉아 깊게 **이론을 파고드는 것**과, 몸을 움직이며 **실험/실습하는 것** 중 무엇을 더 선호하시나요?",
+        placeholder: "예: 원리는 책으로 배우는 게 좋아요, 직접 해봐야 직성이 풀려요"
     },
 ];
 
@@ -73,14 +85,22 @@ const init = async () => {
 
         // 초기 환영 메시지 (채팅 기록이 비어 있을 때만)
         if (chatHistory.length === 0) {
-            const welcomeMsg =
-                "안녕하세요! 저는 대학 전공 선택과 입시 정보를 도와주는 멘토 AI입니다.\n\n" +
-                "🎓 **저는 이런 정보를 드릴 수 있어요:**\n" +
-                "- 관심사에 맞는 대학 전공 및 학과 추천\n" +
-                "- 특정 학과의 진로 및 취업 정보\n" +
-                "- 대학별 입시 전형 및 입결 정보\n\n" +
-                "전공 추천을 받고 싶다면 **'추천 시작'**이라고 입력해주세요.";
-            await appendBubbleWithTyping(welcomeMsg, 'ai', false, 20);
+            try {
+                const authResponse = await fetch('/api/auth/me');
+                const authData = await authResponse.json();
+                
+                if (authData.is_authenticated) {
+                    // Check 'has_history' from backend
+                    if (authData.has_history) {
+                        await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', false, 20);
+                    } else {
+                        // New User Greeting
+                        await appendBubbleWithTyping("안녕하세요! 처음 뵙겠습니다. 무엇을 도와드릴까요?", 'ai', false, 20);
+                    }
+                }
+            } catch (e) {
+                console.error("Auth check in init failed:", e);
+            }
         }
     }
 
@@ -297,19 +317,42 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
 
     chatCanvas.appendChild(container);
 
-    // Typing effect
-    let currentText = '';
-    for (let i = 0; i < text.length; i++) {
-        currentText += text[i];
+    // Typing effect (Time-based correction for background throttling)
+    const startTime = Date.now();
+    let charIndex = 0;
 
-        // Format with markdown links
-        let formattedText = currentText.replace(/\n/g, '<br>');
-        formattedText = formattedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
+    // Initial render (empty)
+    bubble.innerHTML = '';
+    
+    while (charIndex < text.length) {
+        // Calculate how many characters should be shown by now
+        const elapsed = Date.now() - startTime;
+        // Ensure at least 1 char per loop if speed is 0 or very fast, 
+        // but typically we follow elapsed / speed.
+        // Add 1 to index because slice is exclusive or just to ensure start.
+        // let targetCount = Math.floor(elapsed / speed) + 1; 
+        // Better:
+        let targetCount = Math.max(1, Math.floor(elapsed / speed));
+        
+        // If tab was backgrounded, elapsed might be huge, so we catch up instantly.
+        if (targetCount > text.length) targetCount = text.length;
 
-        bubble.innerHTML = formattedText;
-        chatCanvas.scrollTop = chatCanvas.scrollHeight;
+        if (targetCount > charIndex) {
+            charIndex = targetCount;
+            const currentText = text.substring(0, charIndex);
 
-        // Wait for next character
+            // Format with markdown links
+            let formattedText = currentText.replace(/\n/g, '<br>');
+            formattedText = formattedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
+
+            bubble.innerHTML = formattedText;
+            chatCanvas.scrollTop = chatCanvas.scrollHeight;
+        }
+
+        if (charIndex >= text.length) break;
+
+        // Wait a bit before next frame. 
+        // Even if this is throttled to 1000ms, the next iteration will calculate a larger elapsed and catch up.
         await new Promise(resolve => setTimeout(resolve, speed));
     }
 
@@ -542,7 +585,9 @@ const handleSubmit = async () => {
     chatInput.value = '';
 
     // Trigger check for Onboarding
-    if (text === '추천 시작') {
+    // [MODIFIED] More robust check: allows spaces, "추천시작", or "추천 시작"
+    const cleanedText = text.replace(/\s+/g, '');
+    if (cleanedText === '추천시작' || text.includes('추천 시작')) {
         appendBubble(text, 'user');
 
         // Reset onboarding state
@@ -615,7 +660,7 @@ const resetChat = async () => {
     chatHistory = [];
     currentConversationId = null; // Reset conversation ID for new chat
     onboardingState = {
-        isComplete: false,
+        isComplete: true, // [MODIFIED] Set to true to start in normal chat mode
         step: 0,
         answers: {}
     };
@@ -634,8 +679,10 @@ const resetChat = async () => {
         이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
     `;
 
-    // 5. Restart Onboarding
-    startOnboardingStep();
+    // 5. Show Greeting (instead of starting onboarding)
+    await appendBubbleWithTyping("새로운 대화를 시작합니다! 무엇을 도와드릴까요?", 'ai', false, 20);
+    
+    if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
 };
 
 // -- Conversation List Logic --

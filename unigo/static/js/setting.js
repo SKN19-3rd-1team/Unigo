@@ -217,4 +217,43 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('계정 삭제 중 오류가 발생했습니다.');
         }
     });
+
+    // ==========================================
+    // Custom Image Upload Logic
+    // ==========================================
+    const uploadInput = document.getElementById('custom-image-upload');
+    if (uploadInput) {
+        uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                // For FormData, we do NOT set Content-Type header (browser sets it with boundary).
+                // We ONLY set the CSRF token.
+                const headers = {
+                    'X-CSRFToken': getCookie('csrftoken')
+                };
+
+                const response = await fetch('/api/setting/upload-character-image', {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('이미지가 변경되었습니다.');
+                    location.reload();
+                } else {
+                    alert(data.error || '업로드 실패');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('업로드 중 오류 발생');
+            }
+        });
+    }
 });

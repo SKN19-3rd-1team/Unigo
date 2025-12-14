@@ -3,8 +3,6 @@ from django.http import JsonResponse
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
-from django.db import IntegrityError
-from django.utils import timezone
 import json
 import sys
 import os
@@ -56,8 +54,12 @@ def chat(request):
         # Custom image handling
         custom_image_url = None
         # [MODIFIED] Only use custom image if flag is set
-        if hasattr(request.user, 'profile') and request.user.profile.custom_image and request.user.profile.use_custom_image:
-             custom_image_url = request.user.profile.custom_image.url
+        if (
+            hasattr(request.user, "profile")
+            and request.user.profile.custom_image
+            and request.user.profile.use_custom_image
+        ):
+            custom_image_url = request.user.profile.custom_image.url
 
         # UserProfile에서 캐릭터 가져오기
         try:
@@ -67,13 +69,13 @@ def chat(request):
 
         # 이미지 파일명 매핑 (js/chat.js 로직과 동일하게)
         filename = character
-        if character == 'hedgehog':
-            filename = 'hedgehog_ver1'
-            
-        context['character_code'] = character
-        context['character_image'] = filename
-        context['custom_image_url'] = custom_image_url
-        
+        if character == "hedgehog":
+            filename = "hedgehog_ver1"
+
+        context["character_code"] = character
+        context["character_image"] = filename
+        context["custom_image_url"] = custom_image_url
+
     return render(request, "unigo_app/chat.html", context)
 
 
@@ -84,25 +86,28 @@ def setting(request):
 
     context = {}
     context = {}
-    
-    
+
     # Custom image handling
     custom_image_url = None
     # [MODIFIED] Only use custom image if flag is set
-    if hasattr(request.user, 'profile') and request.user.profile.custom_image and request.user.profile.use_custom_image:
+    if (
+        hasattr(request.user, "profile")
+        and request.user.profile.custom_image
+        and request.user.profile.use_custom_image
+    ):
         custom_image_url = request.user.profile.custom_image.url
 
     try:
         character = request.user.profile.character
         filename = character
-        if character == 'hedgehog':
-            filename = 'hedgehog_ver1'
+        if character == "hedgehog":
+            filename = "hedgehog_ver1"
     except Exception:
-        filename = 'rabbit'
-    
-    context['character_image'] = filename
-    context['custom_image_url'] = custom_image_url
-    
+        filename = "rabbit"
+
+    context["character_image"] = filename
+    context["custom_image_url"] = custom_image_url
+
     return render(request, "unigo_app/setting.html", context)
 
 
@@ -237,6 +242,9 @@ def logout_view(request):
 def auth_me(request):
     """현재 사용자 정보 조회 API"""
     if request.user.is_authenticated:
+        # Check if user has any chat history
+        has_history = Conversation.objects.filter(user=request.user).exists()
+
         return JsonResponse(
             {
                 "is_authenticated": True,
@@ -244,10 +252,17 @@ def auth_me(request):
                     "id": request.user.id,
                     "username": request.user.username,
                     "email": request.user.email,
-                    "character": request.user.profile.character if hasattr(request.user, 'profile') else 'rabbit',
+                    "character": request.user.profile.character
+                    if hasattr(request.user, "profile")
+                    else "rabbit",
                     # [MODIFIED] Return custom_image_url only if use_custom_image is True
-                    "custom_image_url": request.user.profile.custom_image.url if hasattr(request.user, 'profile') and request.user.profile.custom_image and request.user.profile.use_custom_image else None
+                    "custom_image_url": request.user.profile.custom_image.url
+                    if hasattr(request.user, "profile")
+                    and request.user.profile.custom_image
+                    and request.user.profile.use_custom_image
+                    else None,
                 },
+                "has_history": has_history,
             }
         )
     return JsonResponse({"is_authenticated": False})
@@ -412,7 +427,7 @@ def update_character(request):
 
         # 프로필 가져오기 (없으면 생성)
         profile, created = UserProfile.objects.get_or_create(user=request.user)
-        
+
         # [MODIFIED] 캐릭터 변경 시 커스텀 이미지 사용 해제
         profile.character = character
         profile.use_custom_image = False
@@ -424,7 +439,6 @@ def update_character(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @login_required
 def upload_character_image(request):
     """커스텀 캐릭터 이미지 업로드 API"""
@@ -432,24 +446,26 @@ def upload_character_image(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
     try:
-        if 'image' not in request.FILES:
-             return JsonResponse({"error": "No image file provided"}, status=400)
-             
-        image_file = request.FILES['image']
-        
+        if "image" not in request.FILES:
+            return JsonResponse({"error": "No image file provided"}, status=400)
+
+        image_file = request.FILES["image"]
+
         # 프로필 가져오기
         profile, created = UserProfile.objects.get_or_create(user=request.user)
-        
+
         # 이미지 저장
         profile.custom_image = image_file
         # [MODIFIED] 이미지 업로드 시 커스텀 이미지 사용 설정
         profile.use_custom_image = True
         profile.save()
-        
-        return JsonResponse({
-            "message": "Image uploaded successfully",
-            "image_url": profile.custom_image.url
-        })
+
+        return JsonResponse(
+            {
+                "message": "Image uploaded successfully",
+                "image_url": profile.custom_image.url,
+            }
+        )
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

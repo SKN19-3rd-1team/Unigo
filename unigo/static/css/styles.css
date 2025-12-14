@@ -330,9 +330,13 @@ html {
 /* ----------------------
     Setting Page Specific Styles
 ---------------------- */
+/* ----------------------
+   Setting Page Layout
+---------------------- */
 .setting-container {
     display: flex;
-    max-width: 1820px;
+    width: 100%;
+    max-width: 1920px;
     margin: 40px auto;
     gap: 60px;
     padding: 0 20px;
@@ -340,8 +344,14 @@ html {
 
 /* Sidebar */
 .sidebar {
-    width: 400px;
-    flex-shrink: 0;
+    width: auto; /* Allow flex to control width */
+    flex: 1; /* 1 ratio */
+    background: #fff;
+    /* border-right: 1px solid #eee; */
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    height: fit-content;
 }
 
 .sidebar-user-box {
@@ -459,19 +469,18 @@ html {
     font-size: 1.2rem;
 }
 
-.input-row {
-    display: flex;
-    gap: 10px;
-}
-
 .form-input {
     flex-grow: 1;
+    width: 100%; /* Ensure full width in non-flex containers */
+    box-sizing: border-box; /* Include padding in width calculation */
     padding: 15px;
     margin: 5px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 1.2rem;
 }
+
+/* .input-row removed as requested */
 
 .form-input:focus {
     outline: none;
