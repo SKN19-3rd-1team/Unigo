@@ -24,13 +24,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from langchain_core.tools import tool
 import re
 import json
-from difflib import SequenceMatcher
-from backend.config import get_settings, get_llm
+from backend.config import get_llm
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from .vectorstore import get_major_vectorstore, get_university_majors_vectorstore
-from .loader import load_major_detail
+from .vectorstore import get_university_majors_vectorstore
 from .university_lookup import lookup_university_url, search_universities
 
 # ==================== 상수 정의 ====================
@@ -104,6 +102,10 @@ def _get_tool_usage_guide() -> str:
 - "기계공학과 졸업 후 연봉은 얼마야?"
 - "사회복지학과 가려면 어떤 자격증이 필요해?"
 - "경영학과에서는 주로 뭘 배워?"
+
+### 4️⃣ **맞춤 전공 추천**
+간단한 질문에 답하고 나에게 딱 맞는 전공을 추천받아보세요!
+- **"추천 시작"** 이라고 입력하면 추천 과정을 시작합니다.
 
 💡 **팁**: 질문이 구체적일수록 더 정확한 정보를 드릴 수 있습니다!
 """
@@ -1298,7 +1300,7 @@ def get_universities_by_department(department_name: str) -> List[Dict[str, str]]
         return result
 
     from backend.db.connection import get_db
-    from backend.db.models import Major, MajorCategory
+    from backend.db.models import Major
     import json
 
     db = next(get_db())

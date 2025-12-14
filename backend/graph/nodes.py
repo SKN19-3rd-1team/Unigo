@@ -5,10 +5,7 @@ LangGraph 그래프를 구성하는 노드 함수들을 정의합니다.
 ReAct 패턴: LLM이 자율적으로 tool 호출 여부를 결정 (agent_node, should_continue)
 """
 
-import re
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
-from langgraph.prebuilt import ToolNode
-from langgraph.constants import END
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from .state import MentorState
 from backend.rag.retriever import (
@@ -30,25 +27,14 @@ from backend.config import get_llm
 # LLM 인스턴스 생성 (.env에서 설정한 LLM_PROVIDER와 MODEL_NAME 사용)
 llm = get_llm()
 
-# doc_type별 기본 가중치 (관심사/과목 비중을 약간 높게 설정)
+# doc_type별 기본 가중치
 MAJOR_DOC_WEIGHTS = {
     "summary": 1.0,
-    "interest": 0.7,
-    "property": 0.7,
-    "subjects": 1.0,
-    "jobs": 1.2,
+    "interest": 1.0,
+    "property": 1.0,
+    "subjects": 0.5,
+    "jobs": 0.7,
 }
-
-# 선호 전공 점수 부여 티어 (Tiered Scoring System)
-# 사용자가 명시적으로 선호한 전공에 대한 차등 점수 부여
-# 검색된 결과가 사용자의 선호도와 얼마나 일치하는지에 따라 가중치를 다르게 설정하여
-# 추천의 정확도와 사용자 만족도를 높입니다.
-SCORE_TIER_1_EXACT_MATCH = (
-    20.0  # 정확히 일치 (예: "컴퓨터공학" == "컴퓨터공학") - 가장 높은 우선순위
-)
-SCORE_TIER_2_STARTS_WITH = 15.0  # 접두어 일치 (예: "컴퓨터공학" in "컴퓨터공학과")
-SCORE_TIER_3_CONTAINS = 10.0  # 포함 (예: "컴퓨터" in "정보컴퓨터공학부")
-SCORE_TIER_4_VECTOR_MATCH = 5.0  # 벡터/별칭 유사도 검색 결과 - 의미적 유사성 기반
 
 
 # ==================== ReAct 에이전트용 설정 ====================
@@ -95,7 +81,9 @@ def _build_user_profile_text(answers: dict, fallback_question: str | None) -> st
         ("desired_salary", "희망 연봉"),
         ("career_goal", "진로 목표"),
         ("strengths", "강점"),
-        ("career_field", "희망 진출 분야"),
+        ("career_field", "중요 가치관"),
+        ("topics", "관심 주제"),
+        ("learning_style", "학습 스타일"),
     ]
 
     sections: list[str] = []
@@ -293,116 +281,6 @@ def recommend_majors_node(state: MentorState) -> dict:
     # 검색된 문서들의 점수를 전공별로 합산
     aggregated_scores = aggregate_major_scores(hits, MAJOR_DOC_WEIGHTS)
 
-    # 2. 선호 전공 우선 처리 (Keyword Boosting)
-    # 벡터 검색 결과 외에, 사용자가 직접 입력한 '선호 전공'을 검색 결과에 강제로 포함시키고 점수를 부스팅합니다.
-    preferred_majors = onboarding_answers.get("preferred_majors")
-    preferred_major_ids = set()
-
-    # [2025-12-12] 가중치 로직 비활성화 요청
-    # if preferred_majors:
-    #     # preferred_majors를 문자열 또는 리스트로 처리
-    #     if isinstance(preferred_majors, str):
-    #         preferred_list = [
-    #             m.strip() for m in preferred_majors.split(",") if m.strip()
-    #         ]
-    #     elif isinstance(preferred_majors, list):
-    #         preferred_list = [
-    #             str(m).strip() for m in preferred_majors if str(m).strip()
-    #         ]
-    #     else:
-    #         preferred_list = []
-
-    #     if preferred_list:
-    #         # 🤖 LLM을 통한 전공명 정규화 (줄임말/오타 보정)
-    #         normalized_list = _normalize_majors_with_llm(preferred_list)
-
-    #         # [수정] 정규화된 결과가 있다면 원본(줄임말/오타)은 검색에서 제외하여 노이즈 방지
-    #         # 예: "컴공" -> "컴퓨터공학과"로 변환되면 "컴공"으로는 검색하지 않음 ("냉동공조" 등이 검색되는 문제 해결)
-    #         if normalized_list:
-    #             search_targets = normalized_list
-    #         else:
-    #             search_targets = preferred_list
-
-    #         # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
-    #         from backend.rag.tools import (
-    #             _find_majors,
-    #         )
-
-    #         # SearchHit 임포트 (함수 내 로컬 임포트)
-    #         from backend.rag.retriever import SearchHit
-
-    #         # [수정] 이미 점수 부스팅을 적용한 전공은 중복 적용하지 않도록 set으로 관리
-    #         boosted_ids = set()
-
-    #         for preferred in search_targets:
-    #             print(f"🔍 Searching for preferred major: '{preferred}'")
-
-    #             # 선호 전공 검색 (정확 매칭 + 벡터 검색)
-    #             preferred_matches = _find_majors(preferred, limit=5)
-
-    #             for record in preferred_matches:
-    #                 if not record.major_id:
-    #                     continue
-
-    #                 preferred_major_ids.add(record.major_id)
-
-    #                 # 기존 aggregated_scores에 없으면 초기화
-    #                 is_newly_added = False
-    #                 if record.major_id not in aggregated_scores:
-    #                     aggregated_scores[record.major_id] = 1.0
-    #                     is_newly_added = True
-    #                     print(
-    #                         f"✅ Added preferred major '{record.major_name}' to results"
-    #                     )
-
-    #                 # 보너스 점수 적용 (차등 점수 부여 시스템)
-    #                 if record.major_id not in boosted_ids:
-    #                     # 점수 계산 로직 - 정확도에 따른 차등 점수 부여
-    #                     boost_score = (
-    #                         SCORE_TIER_4_VECTOR_MATCH  # 기본값: 벡터 유사도 검색
-    #                     )
-
-    #                     rec_name = record.major_name.replace(" ", "")
-    #                     pref_key = preferred.replace(" ", "")
-
-    #                     if rec_name == pref_key:
-    #                         boost_score = SCORE_TIER_1_EXACT_MATCH
-    #                         tier_desc = "Tier 1 (Exact Match)"
-    #                     elif rec_name.startswith(pref_key):
-    #                         boost_score = SCORE_TIER_2_STARTS_WITH
-    #                         tier_desc = "Tier 2 (Starts With)"
-    #                     elif pref_key in rec_name:
-    #                         boost_score = SCORE_TIER_3_CONTAINS
-    #                         tier_desc = "Tier 3 (Contains)"
-    #                     else:
-    #                         tier_desc = "Tier 4 (Vector/Alias)"
-
-    #                     aggregated_scores[record.major_id] = boost_score
-    #                     boosted_ids.add(record.major_id)
-    #                     print(
-    #                         f"🎯 Set '{record.major_name}' score to {boost_score:.2f} [{tier_desc}]"
-    #                     )
-
-    #                 # [핵심 수정] hits 리스트에 해당 전공이 없으면 합성 SearchHit 추가
-    #                 # 이 과정이 없으면 _summarize_major_hits가 해당 전공을 제외해버림
-    #                 if is_newly_added:
-    #                     synthetic_hit = SearchHit(
-    #                         doc_id=f"synthetic-{record.major_id}",
-    #                         major_id=record.major_id,
-    #                         major_name=record.major_name,
-    #                         doc_type="summary",  # 기본 요약 문서로 취급
-    #                         score=1.0,  # 기본 점수
-    #                         metadata={
-    #                             "cluster": record.cluster,
-    #                             "salary": record.salary,
-    #                             "relate_subject_tags": [],  # 태그 추출 로직 생략 (필요 시 loader 함수 사용)
-    #                             "job_tags": [],
-    #                         },
-    #                         text=record.summary
-    #                         or f"{record.major_name}에 대한 정보입니다.",
-    #                     )
-    #                     hits.append(synthetic_hit)
-
     recommended = _summarize_major_hits(hits, aggregated_scores)
 
     serialized_hits = [
@@ -460,6 +338,8 @@ def agent_node(state: MentorState) -> dict:
 [출력 제어]
 - 사용자가 요청한 정보(예: 커리큘럼)만 제공하고, 요청하지 않은 정보(예: 연봉, 자격증)는 과도하게 나열하지 마세요.
 - 친절하고 구조화된 설명을 제공하세요.
+- **[중요]** 사용자가 처음 인사를 하거나, 무엇을 해야 할지 물어볼 때는 반드시 **"추천 시작"** 기능을 통해 맞춤형 전공 추천을 받을 수 있음을 안내하세요. (예: "저와 함께 나에게 딱 맞는 전공을 찾아볼까요? '추천 시작'이라고 말씀해 주세요!")
+- **[예외 처리]** 만약 사용자가 "추천 시작"이라고 말했는데 이 메시지를 받았다면(프론트엔드 트리거 실패), "학과 목록"을 나열하지 말고, **"추천 기능을 시작하려면 '추천 시작'을 정확히 입력해 주세요."** 라고 안내하세요. 절대 `list_departments` 툴을 호출하여 일반 학과 목록을 보여주지 마세요.
                                        
 학생 관심사: {interests_text}
 """

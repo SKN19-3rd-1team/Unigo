@@ -59,10 +59,8 @@
                 <form id="form-nickname" onsubmit="return false;">
                     <div class="form-group">
                         <label class="input-label">새 닉네임</label>
-                        <div class="input-row">
-                            <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
-                            <button type="button" class="btn-secondary" id="btn-check-duplicate">중복 확인</button>
-                        </div>
+                        <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
+                        <button type="button" class="btn-secondary" id="btn-check-duplicate" style="margin-top: 5px;">중복 확인</button>
                         <div class="error-msg" id="nickname-error"></div>
                         <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
                     </div>
@@ -87,11 +85,7 @@
 
                     <div class="form-group">
                         <label class="input-label">새 비밀번호</label>
-                        <div class="input-row">
-                            <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
-                            <button type="button" class="btn-secondary" disabled
-                                style="opacity:0; cursor:default">인증</button> <!-- Layout Spacer -->
-                        </div>
+                        <input type="password" class="form-input" id="new-password" placeholder="새 비밀번호">
                     </div>
 
                     <div class="form-group">
@@ -159,200 +153,10 @@
 <script src="{% static 'js/setting.js' %}"></script>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Tab Switching (Account Settings internal tabs)
-        const tabs = document.querySelectorAll('.tab-btn');
-        const contents = document.querySelectorAll('.tab-content');
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Remove active class from all
-                tabs.forEach(t => t.classList.remove('active'));
-                contents.forEach(c => c.classList.remove('active'));
-
-                // Add active to clicked
-                tab.classList.add('active');
-                const target = tab.dataset.tab;
-                document.getElementById(`tab-${target}`).classList.add('active');
-
-                // Reset forms when switching tabs? (Optional)
-                resetForms();
-            });
-        });
-
-        function resetForms() {
-            document.getElementById('form-nickname').reset();
-            document.getElementById('form-password').reset();
-            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
-            document.querySelectorAll('.success-msg').forEach(el => el.style.display = 'none');
-            isNicknameChecked = false;
-        }
-
-        // ==========================================
-        // Nickname Change Logic
-        // ==========================================
-        let isNicknameChecked = false;
-
-        document.getElementById('btn-check-duplicate').addEventListener('click', async () => {
-            const username = document.getElementById('nickname-input').value;
-            const errorEl = document.getElementById('nickname-error');
-            const successEl = document.getElementById('nickname-success');
-
-            errorEl.style.display = 'none';
-            successEl.style.display = 'none';
-            isNicknameChecked = false;
-
-            if (!username) {
-                errorEl.textContent = '닉네임을 입력해주세요.';
-                errorEl.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/setting/check-username', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                const data = await response.json();
-
-                if (data.exists) {
-                    errorEl.textContent = data.message;
-                    errorEl.style.display = 'block';
-                } else {
-                    successEl.textContent = data.message;
-                    successEl.style.display = 'block';
-                    isNicknameChecked = true;
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('중복 확인 중 오류가 발생했습니다.');
-            }
-        });
-
-        document.getElementById('btn-save-nickname').addEventListener('click', async () => {
-            const newUsername = document.getElementById('nickname-input').value;
-            const password = document.getElementById('nickname-password').value;
-
-            if (!isNicknameChecked) {
-                alert('닉네임 중복 확인을 해주세요.');
-                return;
-            }
-            if (!password) {
-                alert('비밀번호를 입력해주세요.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/setting/change-nickname', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: newUsername, password })
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('내용이 변경되었습니다.');
-                    location.reload(); // Reload to refresh user state
-                } else {
-                    alert(data.error || '변경 실패');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('오류가 발생했습니다.');
-            }
-        });
-
-        // ==========================================
-        // Password Change Logic
-        // ==========================================
-        document.getElementById('btn-save-password').addEventListener('click', async () => {
-            const currentPassword = document.getElementById('current-password').value;
-            const newPassword = document.getElementById('new-password').value;
-            const confirmPassword = document.getElementById('new-password-confirm').value;
-            const matchError = document.getElementById('password-match-error');
-
-            matchError.style.display = 'none';
-
-            if (!currentPassword || !newPassword || !confirmPassword) {
-                alert('모든 필드를 입력해주세요.');
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                matchError.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/setting/change-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        current_password: currentPassword,
-                        new_password: newPassword
-                    })
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('내용이 변경되었습니다.');
-                    location.reload(); // Reload
-                } else {
-                    alert(data.error || '변경 실패');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('오류가 발생했습니다.');
-            }
-        });
-
-        // Sidebar Switching Logic (Account vs others)
-        // Since character is now a link, we only handle simple display if needed, 
-        // but currently setting page is just account settings + link.
-        // We can simplify sidebar logic or remove it if 'active' class on Account is sufficient.
-        const sidebarBtns = document.querySelectorAll('.sidebar-btn');
-        // Simple logic to keep styles if clicked (though link redirects)
-        sidebarBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                // If it's a link, let it navigate.
-                // If it's a div (like Account), handle tab switch if we had multiple single-page sections.
-                if (btn.tagName === 'DIV') {
-                    // Logic for account section (already visible by default)
-                }
-            });
-        });
-
-        // Custom Image Upload
-        const uploadInput = document.getElementById('custom-image-upload');
-        if (uploadInput) {
-            uploadInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const formData = new FormData();
-                formData.append('image', file);
-
-                try {
-                    const response = await fetch('/api/setting/upload-character-image', {
-                        method: 'POST',
-                        body: formData
-                        // No Content-Type header for FormData, browser sets it with boundary
-                    });
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        alert('이미지가 변경되었습니다.');
-                        location.reload();
-                    } else {
-                        alert(data.error || '업로드 실패');
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert('업로드 중 오류 발생');
-                }
-            });
-        }
-    });
+<script>
+    // Inline script for tab switching or minor UI logic if strictly necessary only for this template.
+    // Ideally, all logic is now in setting.js to avoid duplication.
+    // If setting.js handles everything, this script block can be empty or removed.
+</script>
 </script>
 {% endblock %}
