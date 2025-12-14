@@ -489,7 +489,7 @@ const updateResultPanel = (result) => {
     let html = "<strong>추천 전공 결과:</strong><br><br>";
     recs.slice(0, 5).forEach((major, idx) => {
         html += `${idx + 1}. ${major.major_name}<br>`;
-        html += `<small style="color:#666">${major.cluster || ''} - ${major.salary || '연봉정보 없음'}</small><br><br>`;
+        html += `<small style="color:#666">${major.cluster || ''} - 추천 점수: ${major.score ? major.score.toFixed(2) : 'N/A'}</small><br><br>`;
     });
 
     resultCard.innerHTML = html;
@@ -828,7 +828,7 @@ const summarizeConversation = async () => {
         // 요약 API 호출
         const resp = await fetch('/api/chat/summarize', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getPostHeaders(),
             body: JSON.stringify({ history: chatHistory })
         });
         if (!resp.ok) throw new Error('Failed to summarize conversation');

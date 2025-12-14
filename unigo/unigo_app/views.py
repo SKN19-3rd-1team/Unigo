@@ -674,10 +674,6 @@ def chat_history(request):
         logger.error(f"Error in chat_history: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
-    except Exception as e:
-        logger.error(f"Error in chat_history: {e}", exc_info=True)
-        return JsonResponse({"error": str(e)}, status=500)
-
 
 @login_required
 def save_chat_history(request):
@@ -880,7 +876,8 @@ def onboarding_api(request):
 # ============================================
 # Chat Summarization API
 # ============================================
-@csrf_exempt
+
+
 def summarize_conversation(request):
     """
     대화 요약 API

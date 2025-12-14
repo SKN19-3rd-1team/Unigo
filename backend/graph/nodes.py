@@ -29,11 +29,11 @@ llm = get_llm()
 
 # doc_type별 기본 가중치
 MAJOR_DOC_WEIGHTS = {
-    "summary": 1.0,
-    "interest": 1.0,
-    "property": 1.0,
-    "subjects": 0.5,
-    "jobs": 0.7,
+    "summary": 0.8,
+    "interest": 1.3,
+    "property": 0.8,
+    "subjects": 1.2,
+    "jobs": 1.0,
 }
 
 
