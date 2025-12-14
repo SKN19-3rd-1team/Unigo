@@ -14,27 +14,33 @@ const API_ONBOARDING_URL = '/api/onboarding';
 const ONBOARDING_QUESTIONS = [
     {
         key: "subjects",
-        label: "선호 고교 과목",
-        prompt: "안녕하세요! 가장 좋아하거나 자신 있는 고등학교 과목은 무엇인가요? 좋아하는 이유도 함께 알려주세요.",
-        placeholder: "예: 수학과 물리를 특히 좋아하고 실험 수업을 즐깁니다."
+        label: "선호 교과목",
+        prompt: "안녕하세요! 고등학교 과목 중 가장 자신 있거나 흥미로운 과목은 무엇인가요? (예: 수학, 물리를 잘하고 과학 실험을 좋아합니다)",
+        placeholder: "예: 수학, 영어, 사회문화"
     },
     {
         key: "interests",
-        label: "흥미 및 취미",
-        prompt: "학교 밖에서는 어떤 주제나 취미에 가장 흥미를 느끼나요?",
-        placeholder: "예: 로봇 동아리 활동, 디지털 드로잉, 음악 감상 등"
+        label: "관심사 및 활동",
+        prompt: "평소 즐겨 하는 활동이나 관심 있는 주제는 무엇인가요? 동아리 활동이나 취미도 좋아요.",
+        placeholder: "예: 코딩 동아리, 역사 소설 읽기, 유튜브 영상 편집"
     },
     {
-        key: "desired_salary",
-        label: "희망 연봉",
-        prompt: "졸업 후 어느 정도의 연봉을 희망하나요? 대략적인 수준을 알려주세요.",
-        placeholder: "예: 연 4천만 원 이상이면 좋겠습니다."
+        key: "career_goal",
+        label: "장래 희망",
+        prompt: "장래 희망이나 관심 있는 직업 분야가 있나요? 구체적인 직업명이 아니어도 괜찮아요.",
+        placeholder: "예: 인공지능 개발자, 교사, 마케터, 창업"
     },
     {
-        key: "preferred_majors",
-        label: "희망 학과",
-        prompt: "가장 진학하고 싶은 학과나 전공은 무엇인가요? 복수로 답해도 괜찮아요.",
-        placeholder: "예: 컴퓨터공학과, 데이터사이언스학과"
+        key: "strengths",
+        label: "성격 및 장점",
+        prompt: "본인의 성격이나 장점은 무엇이라고 생각하나요? (예: 논리적이다, 상상력이 풍부하다, 꼼꼼하다)",
+        placeholder: "예: 호기심이 많고 논리적으로 생각하는 것을 좋아해요."
+    },
+    {
+        key: "career_field",
+        label: "희망 진출 분야",
+        prompt: "마지막으로, 졸업 후 어떤 분야에서 일하고 싶으신가요? (예: IT, 의료, 금융, 예술, 교육 등)",
+        placeholder: "예: IT 플랫폼 기업, 병원, 은행, 방송국"
     },
 ];
 
@@ -54,38 +60,30 @@ const init = async () => {
     renderHistory();
     restoreResultPanel(); // Restore right panel state
 
-    if (!onboardingState.isComplete) {
-        if (chatHistory.length > 0) {
-            // 이미 대화 기록이 있으면 온보딩 건너뛰기
-            console.log("Existing history found, skipping onboarding.");
-            onboardingState.isComplete = true;
-            saveState();
-
-            // "다시 만나서 반갑습니다!" 메시지가 이미 있는지 확인 (중복 방지)
-            const lastMsg = chatHistory[chatHistory.length - 1];
-            if (!lastMsg || lastMsg.content !== "다시 만나서 반갑습니다!") {
-                await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', true, 20);
-            }
-        } else {
-            // Start or continue onboarding
-            startOnboardingStep();
-        }
+    if (!onboardingState.isComplete && onboardingState.step > 0) {
+        // 이미 진행 중이던 온보딩이 있다면 계속 진행
+        startOnboardingStep();
     } else {
+        // 처음 접속했거나 온보딩이 완료된 상태라면 일반 대화 모드로 시작
+        // 단, 진행 중이 아니면 isComplete를 true로 간주하여 placeholder 등이 일반 대화용으로 나오게 함
+        onboardingState.isComplete = true;
+
         // 온보딩 완료 상태라면 Placeholder 업데이트
         if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
 
-        // 로그인 사용자는 환영 메시지를 표시 (채팅 기록이 비어 있을 때만)
-        try {
-            const authResponse = await fetch('/api/auth/me');
-            const authData = await authResponse.json();
-
-            if (authData.is_authenticated && chatHistory.length === 0) {
-                await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', false, 20);
-            }
-        } catch (e) {
-            console.error("Auth check in init failed:", e);
+        // 초기 환영 메시지 (채팅 기록이 비어 있을 때만)
+        if (chatHistory.length === 0) {
+            const welcomeMsg =
+                "안녕하세요! 저는 대학 전공 선택과 입시 정보를 도와주는 멘토 AI입니다.\n\n" +
+                "🎓 **저는 이런 정보를 드릴 수 있어요:**\n" +
+                "- 관심사에 맞는 대학 전공 및 학과 추천\n" +
+                "- 특정 학과의 진로 및 취업 정보\n" +
+                "- 대학별 입시 전형 및 입결 정보\n\n" +
+                "전공 추천을 받고 싶다면 **'추천 시작'**이라고 입력해주세요.";
+            await appendBubbleWithTyping(welcomeMsg, 'ai', false, 20);
         }
     }
+
 };
 
 const loadState = async () => {
@@ -401,7 +399,7 @@ const finishOnboarding = async () => {
         // Call Major Recommendation API
         const response = await fetch(API_ONBOARDING_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getPostHeaders(),
             body: JSON.stringify({ answers: onboardingState.answers })
         });
 
@@ -500,7 +498,7 @@ const handleChatInput = async (text) => {
 
         const response = await fetch(API_CHAT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getPostHeaders(),
             body: JSON.stringify(requestBody)
         });
 
@@ -533,6 +531,25 @@ const handleSubmit = async () => {
 
     chatInput.value = '';
 
+    // Trigger check for Onboarding
+    if (text === '추천 시작') {
+        appendBubble(text, 'user');
+
+        // Reset onboarding state
+        onboardingState = {
+            isComplete: false,
+            step: 0,
+            answers: {}
+        };
+        saveState(); // Save reset state
+
+        // Start onboarding
+        await startOnboardingStep();
+
+        chatInput.focus();
+        return;
+    }
+
     if (!onboardingState.isComplete) {
         await handleOnboardingInput(text);
     } else {
@@ -554,7 +571,7 @@ const resetChat = async () => {
             if (authData && authData.is_authenticated) {
                 const saveResponse = await fetch('/api/chat/save', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getPostHeaders(),
                     body: JSON.stringify({ history: chatHistory })
                 });
 
@@ -574,7 +591,10 @@ const resetChat = async () => {
 
     // 2. Backend Reset (If logged in)
     try {
-        await fetch('/api/chat/reset', { method: 'POST' });
+        await fetch('/api/chat/reset', {
+            method: 'POST',
+            headers: getPostHeaders()
+        });
     } catch (e) {
         console.error("Reset API check failed (might be guest):", e);
     }
@@ -673,7 +693,7 @@ const loadConversation = async (convId) => {
             try {
                 const saveResp = await fetch('/api/chat/save', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getPostHeaders(),
                     body: JSON.stringify({ history: chatHistory })
                 });
                 if (!saveResp.ok) console.error('Failed to save current conversation before loading');

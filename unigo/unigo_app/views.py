@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import IntegrityError
@@ -63,8 +63,8 @@ def chat(request):
         try:
             character = request.user.profile.character
         except Exception:
-            character = 'rabbit'
-        
+            character = "rabbit"
+
         # 이미지 파일명 매핑 (js/chat.js 로직과 동일하게)
         filename = character
         if character == 'hedgehog':
@@ -129,7 +129,6 @@ def home(request):
 # ============================================
 
 
-@csrf_exempt
 def auth_signup(request):
     """회원가입 API"""
     if request.method != "POST":
@@ -163,7 +162,6 @@ def auth_signup(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 def auth_login(request):
     """
     로그인 API
@@ -216,7 +214,6 @@ def auth_login(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 def auth_logout(request):
     """로그아웃 API"""
     if request.method != "POST":
@@ -256,7 +253,6 @@ def auth_me(request):
     return JsonResponse({"is_authenticated": False})
 
 
-@csrf_exempt
 def auth_check_email(request):
     """이메일 중복 확인 API (Public)"""
     if request.method != "POST":
@@ -280,7 +276,6 @@ def auth_check_email(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 def auth_check_username(request):
     """아이디(닉네임) 중복 확인 API (Public)"""
     if request.method != "POST":
@@ -309,7 +304,6 @@ def auth_check_username(request):
 # ============================================
 
 
-@csrf_exempt
 @login_required
 def check_username(request):
     """닉네임 중복 확인 API"""
@@ -334,7 +328,6 @@ def check_username(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @login_required
 def change_nickname(request):
     """닉네임 변경 API"""
@@ -368,7 +361,6 @@ def change_nickname(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @login_required
 def change_password(request):
     """비밀번호 변경 API"""
@@ -405,7 +397,6 @@ def change_password(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @login_required
 def update_character(request):
     """캐릭터 변경 API"""
@@ -469,7 +460,6 @@ def upload_character_image(request):
 # ============================================
 
 
-@csrf_exempt
 def delete_account(request):
     """
     계정탈퇴 API
@@ -492,14 +482,14 @@ def delete_account(request):
             target_user = User.objects.get(username=username)
         except User.DoesNotExist:
             return JsonResponse({"error": "Username doesn't exist"}, status=400)
-        
+
         # 현재 비밀번호 검증
-        user = authenticate(
-            request, username=request.user.username, password=password
-        )
+        user = authenticate(request, username=request.user.username, password=password)
         if user is None:
-            return JsonResponse({"error": "현재 비밀번호가 일치하지 않습니다."}, status=400)
-        
+            return JsonResponse(
+                {"error": "현재 비밀번호가 일치하지 않습니다."}, status=400
+            )
+
         # 로그아웃
         logout(request)
 
@@ -513,103 +503,6 @@ def delete_account(request):
                 "user": {"id": user.id, "username": user.username},
             }
         )
-    
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-#---------------------------------------------------------------------------------
-
-@csrf_exempt
-@login_required
-def check_username(request):
-    """닉네임 중복 확인 API"""
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        username = data.get("username")
-
-        if not username:
-            return JsonResponse({"error": "Username required"}, status=400)
-
-        if User.objects.filter(username=username).exists():
-            return JsonResponse(
-                {"exists": True, "message": "이미 사용 중인 닉네임입니다."}
-            )
-
-        return JsonResponse({"exists": False, "message": "사용 가능한 닉네임입니다."})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@csrf_exempt
-@login_required
-def change_nickname(request):
-    """닉네임 변경 API"""
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        new_username = data.get("username")
-        password = data.get("password")
-
-        if not new_username or not password:
-            return JsonResponse({"error": "Username and password required"}, status=400)
-
-        # 현재 비밀번호 검증
-        user = authenticate(request, username=request.user.username, password=password)
-        if user is None:
-            return JsonResponse({"error": "비밀번호가 일치하지 않습니다."}, status=400)
-
-        # 중복 확인
-        if User.objects.filter(username=new_username).exists():
-            return JsonResponse({"error": "이미 사용 중인 닉네임입니다."}, status=400)
-
-        # 닉네임 변경
-        user.username = new_username
-        user.save()
-
-        return JsonResponse({"message": "내용이 변경되었습니다."})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@csrf_exempt
-@login_required
-def change_password(request):
-    """비밀번호 변경 API"""
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        current_password = data.get("current_password")
-        new_password = data.get("new_password")
-
-        if not current_password or not new_password:
-            return JsonResponse({"error": "All fields required"}, status=400)
-
-        # 현재 비밀번호 검증
-        user = authenticate(
-            request, username=request.user.username, password=current_password
-        )
-        if user is None:
-            return JsonResponse(
-                {"error": "현재 비밀번호가 일치하지 않습니다."}, status=400
-            )
-
-        # 비밀번호 변경
-        user.set_password(new_password)
-        user.save()
-
-        # 세션 유지
-        update_session_auth_hash(request, user)
-
-        return JsonResponse({"message": "내용이 변경되었습니다."})
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -620,7 +513,6 @@ def change_password(request):
 # ============================================
 
 
-@csrf_exempt
 def chat_api(request):
     """
     챗봇 대화 API (DB 저장 포함)
@@ -649,20 +541,26 @@ def chat_api(request):
             # 프론트엔드에서 conversation_id를 받으면 해당 대화 사용
             if conversation_id:
                 try:
-                    conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+                    conversation = Conversation.objects.get(
+                        id=conversation_id, user=request.user
+                    )
                 except Conversation.DoesNotExist:
                     # conversation_id가 유효하지 않으면 새 대화 생성
                     conversation = Conversation.objects.create(
-                        user=request.user, 
-                        session_id=str(uuid.uuid4()),  # 로그인 사용자도 고유한 session_id 생성
-                        title=message_text[:20]
+                        user=request.user,
+                        session_id=str(
+                            uuid.uuid4()
+                        ),  # 로그인 사용자도 고유한 session_id 생성
+                        title=message_text[:20],
                     )
             else:
                 # conversation_id가 없으면 새 대화 생성
                 conversation = Conversation.objects.create(
-                    user=request.user, 
-                    session_id=str(uuid.uuid4()),  # 로그인 사용자도 고유한 session_id 생성
-                    title=message_text[:20]
+                    user=request.user,
+                    session_id=str(
+                        uuid.uuid4()
+                    ),  # 로그인 사용자도 고유한 session_id 생성
+                    title=message_text[:20],
                 )
         else:
             # 비로그인 사용자: session_id 필수
@@ -765,7 +663,6 @@ def chat_history(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @login_required
 def save_chat_history(request):
     """
@@ -830,10 +727,7 @@ def list_conversations(request):
     로그인 사용자의 과거 대화 세션 리스트 반환
     """
     try:
-        convs = (
-            Conversation.objects.filter(user=request.user)
-            .order_by("-updated_at")
-        )
+        convs = Conversation.objects.filter(user=request.user).order_by("-updated_at")
 
         data = []
         for c in convs:
@@ -875,17 +769,23 @@ def load_conversation(request):
 
         msgs = conv.messages.order_by("created_at")
         messages = [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()} for m in msgs
+            {
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in msgs
         ]
 
-        return JsonResponse({"conversation": {"id": conv.id, "title": conv.title, "messages": messages}})
+        return JsonResponse(
+            {"conversation": {"id": conv.id, "title": conv.title, "messages": messages}}
+        )
 
     except Exception as e:
         logger.error(f"Error in load_conversation: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
-    
 
-@csrf_exempt
+
 @login_required
 def reset_chat_history(request):
     """
@@ -917,7 +817,6 @@ def reset_chat_history(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 def onboarding_api(request):
     """
     온보딩 질문 답변 API (DB 저장 포함)

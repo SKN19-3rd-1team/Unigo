@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from backend.config import get_settings, resolve_path
+from backend.config import get_settings
 
 
 # ==================== Major Detail Loading ====================
@@ -260,70 +260,12 @@ def load_major_detail(path: str | Path | None = None) -> list[MajorRecord]:
         except ImportError:
             pass
 
-    # 2. JSON 파일에서 로드 (Fallback)
-    json_path = Path(resolve_path(path if path else settings.major_detail_path))
-    data = json.loads(json_path.read_text(encoding="utf-8"))
-
-    records: list[MajorRecord] = []
-    seen_ids: dict[str, int] = {}
-
-    for block_index, block in enumerate(data):
-        contents: Sequence[dict[str, Any]] = (
-            block.get("dataSearch", {}).get("content", []) or []
-        )
-        for content_index, payload in enumerate(contents):
-            major_name = (payload.get("major") or "").strip()
-            base_slug = _slugify(major_name) or f"major-{block_index}-{content_index}"
-            dedup_idx = seen_ids.get(base_slug, 0)
-            seen_ids[base_slug] = dedup_idx + 1
-            major_id = base_slug if dedup_idx == 0 else f"{base_slug}-{dedup_idx}"
-
-            salary = _parse_salary(payload.get("salary"))
-            department_aliases = _split_multi_value(payload.get("department", ""))
-
-            # chartData 처리
-            chart_data = payload.get("chartData")
-            acceptance_rate = _calculate_acceptance_rate(chart_data)
-
-            # 통계 데이터 추출 (chartData[0] 내부에 존재)
-            gender_stats = None
-            satisfaction_stats = None
-            employment_rate_stats = None
-
-            if chart_data and isinstance(chart_data, list) and len(chart_data) > 0:
-                stats_block = chart_data[0]
-                if isinstance(stats_block, dict):
-                    gender_stats = stats_block.get("gender")
-                    satisfaction_stats = stats_block.get("satisfaction")
-                    employment_rate_stats = stats_block.get("employment_rate")
-
-            record = MajorRecord(
-                major_id=major_id,
-                major_name=major_name or f"미확인 전공 {len(records) + 1}",
-                cluster=None,
-                summary=(payload.get("summary") or "").strip(),
-                interest=(payload.get("interest") or "").strip(),
-                property=(payload.get("property") or "").strip(),
-                relate_subject=payload.get("relate_subject"),
-                job=(payload.get("job") or "").strip(),
-                enter_field=payload.get("enter_field"),
-                salary=salary,
-                employment=payload.get("employment"),
-                gender=gender_stats,
-                satisfaction=satisfaction_stats,
-                employment_rate=employment_rate_stats,
-                acceptance_rate=acceptance_rate,
-                department_aliases=department_aliases,
-                career_act=payload.get("career_act"),
-                qualifications=payload.get("qualifications"),
-                main_subject=payload.get("main_subject"),
-                university=payload.get("university"),
-                chart_data=chart_data,
-                raw=payload,
-            )
-            records.append(record)
-
-    return records
+    # 2. JSON 파일에서 로드 (Fallback - Removed)
+    # Refactored to only use MySQL Database
+    print(
+        "⚠️ JSON fallback has been removed. Please ensure MySQL database is populated."
+    )
+    return []
 
 
 def _unique_preserve_order(values: Sequence[str]) -> list[str]:
