@@ -40,5 +40,6 @@ urlpatterns = [
     path("api/chat/list", views.list_conversations, name="list_conversations"),
     path("api/chat/load", views.load_conversation, name="load_conversation"),
     path("api/chat/reset", views.reset_chat_history, name="reset_chat_history"),
+    path("api/chat/summarize", views.summarize_conversation, name="summarize_conversation"),
     path("api/onboarding", views.onboarding_api, name="onboarding_api"),
 ]

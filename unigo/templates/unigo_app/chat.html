@@ -83,6 +83,40 @@
                 </div>
             </div>
         </template>
+
+        <!-- 개별 아이템 템플릿 추가 -->
+        <template id="conv-item-template">
+            <li data-id="">
+                <strong class="conv-title"></strong><br>
+                <small class="conv-meta"></small><br>
+                <span class="conv-preview"></span>
+            </li>
+        </template>
+
+        <!-- 요약 로딩 템플릿 -->
+        <template id="summary-loading-template">
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-loading">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <div class="dots">
+                        <span>.</span>
+                        <span>.</span>
+                        <span>.</span>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- 요약 결과 템플릿 추가-->
+        <template id="summary-result-template">
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-content"></div>
+        </template>
     </div>
 </div>
 {% endblock %}

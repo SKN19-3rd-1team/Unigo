@@ -990,6 +990,91 @@ def _format_department_output(
     return "\n".join(lines)
 
 
+# ==================== 대화 기록 요약 ====================
+def _format_conversation_history(
+    history: List[Dict[str, str]]
+) -> str:
+    """
+    대화 기록을 텍스트 형태로 포맷팅합니다.
+
+    Args:
+        history: 대화 기록 리스트 (각 항목은 {"role": "user"/"assistant", "content": "메시지 내용"} 형태)
+
+    Returns:
+        포맷팅된 대화 기록 문자열
+    """
+    lines = []
+    # 대화 기록 포맷팅
+    for turn in history:
+        # 역할과 내용 추출
+        role = turn.get("role", "user")
+        content = turn.get("content", "").strip()
+
+        # 역할에 따라 접두사 추가
+        if role == "user":
+            lines.append(f"User: {content}")
+        else:
+            lines.append(f"Assistant: {content}")
+    return "\n".join(lines)
+
+
+def summarize_conversation_history(
+    history: List[Dict[str, str]]
+) -> str:
+    """
+    대화 기록을 요약하여 간결한 형태로 반환합니다.
+
+    Args:
+        history: 대화 기록 리스트 (각 항목은 {"role": "user"/"assistant", "content": "메시지 내용"} 형태)
+
+    Returns:
+        요약된 대화 기록 문자열
+    """
+    llm = get_llm()
+
+    prompt = ChatPromptTemplate.from_template("""
+    다음은 사용자와 AI의 대화 기록이다.
+    이 대화를 사용자가 나중에 다시 볼 때 쉽게 이해할 수 있도록 요약해라.
+
+    ⚠️ 주의:
+    - 대화 내용을 그대로 나열하지 말 것
+    - User / Assistant 형식을 사용하지 말 것
+    - "사용자는", "AI는" 같은 3인칭 표현을 사용하지 말 것
+    - 개괄식으로 간결하게 작성할 것
+        - "-함", "-임", 체언 종결 등 명사형 표현 사용
+        - "-했다", "-이다" 같은 서술형보다는 짧고 간결한 표현 선호
+    - 단, 결론 부분만 예외적으로 친근한 구어체 사용
+        - "-해보면 좋겠어요", "-추천드려요", "-확인해보세요" 등
+    - 핵심만 추려 하나의 요약문으로 작성할 것
+
+    ### 요약 형식: ###
+    [키워드 추출을 통해 태그/카테고리 자동 생성]
+    #진로상담 #학과추천 #애니메이션 #예체능
+                                              
+    핵심 주제
+    - [한 문장으로 대화의 메인 토픽 설명]
+
+    주요 내용
+    - [중요했던 포인트 2-3개]
+    - [구체적인 정보나 추천 내용 포함]
+
+    결론
+    - [도출된 결론이나 다음 단계를 제안하듯이]
+                                              
+    대화 통계
+    - 총 메시지: n개
+    - 주요 토픽: n개 (어떤 토픽인지)
+                                              
+    대화 기록:
+    {conversation_history}
+    """)
+
+    chain = prompt | llm | StrOutputParser()
+    history_text = _format_conversation_history(history)
+    result = chain.invoke({"conversation_history": history_text})
+    return result.strip()
+
+
 # ==================== LangChain Tools ====================
 
 

@@ -726,13 +726,14 @@ const showConversationList = async () => {
         const ul = clone.querySelector('.conv-list-ul');
 
         convs.forEach(c => {
-            const li = document.createElement('li');
-            li.style.padding = '8px 6px';
-            li.style.borderBottom = '1px solid #eee';
-            li.style.cursor = 'pointer';
+            const itemTpl = document.getElementById('conv-item-template');
+            const li = itemTpl.content.cloneNode(true).querySelector('li');
+            
             li.setAttribute('data-id', c.id);
-
-            li.innerHTML = `<strong>${c.title || '(제목 없음)'}</strong><br><small style="color:#666">${c.updated_at.split('T')[0]} · ${c.message_count} messages</small><br><span style="color:#333">${c.last_message_preview || ''}</span>`;
+            li.querySelector('.conv-title').textContent = c.title || '(제목 없음)';
+            li.querySelector('.conv-meta').textContent = `${c.updated_at.split('T')[0]} · ${c.message_count} messages`;
+            li.querySelector('.conv-preview').textContent = c.last_message_preview || '';
+            
             ul.appendChild(li);
         });
 
@@ -748,7 +749,7 @@ const showConversationList = async () => {
             });
         });
 
-        // 닫기 버튼 리스너
+        // 닫기 버튼 클릭 시 이전 결과 패널 복원
         const backBtn = resultCard.querySelector('.conv-back-btn');
         if (backBtn) backBtn.addEventListener('click', (e) => { e.preventDefault(); restoreResultPanel(); });
 
@@ -804,6 +805,55 @@ const loadConversation = async (convId) => {
     }
 };
 
+
+// -- 대화 내역 요약 --
+
+const summarizeConversation = async () => {
+    if (chatHistory.length === 0) {
+        alert('요약할 대화 내역이 없습니다.');
+        return;
+    }
+
+    const resultCard = document.querySelector('.result-card');
+
+    try {
+        // 요약 요청 직후 로딩 표시
+        if (resultCard) {
+            const loadingTpl = document.getElementById('summary-loading-template');
+            const loadingContent = loadingTpl.content.cloneNode(true);
+            resultCard.innerHTML = '';
+            resultCard.appendChild(loadingContent);
+        }
+
+        // 요약 API 호출
+        const resp = await fetch('/api/chat/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ history: chatHistory })
+        });
+        if (!resp.ok) throw new Error('Failed to summarize conversation');
+
+        // 결과 표시
+        const data = await resp.json();
+
+        // 요약 결과 오른쪽 패널에 렌더링
+        if (resultCard) {
+            const resultTpl = document.getElementById('summary-result-template');
+            const resultContent = resultTpl.content.cloneNode(true);
+            
+            const contentDiv = resultContent.querySelector('.result-content');
+            contentDiv.innerHTML = data.summary.replace(/\n/g, '<br>');
+            
+            resultCard.innerHTML = '';
+            resultCard.appendChild(resultContent);
+            sessionStorage.setItem(STORAGE_KEY_RESULT_PANEL, resultCard.innerHTML);
+        }
+    } catch (e) {
+        console.error('Error summarizing conversation:', e);
+        alert('요약에 실패했습니다.');
+    }
+};
+
 // -- Event Listeners --
 
 // New Chat Button (using aria-label="새 채팅")
@@ -816,6 +866,12 @@ if (newChatBtn) {
 const folderBtn = document.querySelector('.action-btn[aria-label="폴더"]');
 if (folderBtn) {
     folderBtn.addEventListener('click', showConversationList);
+}
+
+// Summarize Button (using aria-label="요약")
+const summarizeBtn = document.querySelector('.action-btn[aria-label="정보"]');
+if (summarizeBtn) {
+    summarizeBtn.addEventListener('click', summarizeConversation);
 }
 
 if (sendBtn) {
