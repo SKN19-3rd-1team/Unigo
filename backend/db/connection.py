@@ -17,7 +17,7 @@ engine = create_engine(
 )
 
 # ---------------------------------------------------------
-# DB Query Logging Configuration
+# DB 쿼리 로깅 설정
 # ---------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ Base = declarative_base()
 
 
 def get_db():
-    """FastAPI Dependency for database session"""
+    """데이터베이스 세션 의존성 (FastAPI용)"""
     db = SessionLocal()
     try:
         yield db

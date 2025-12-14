@@ -99,7 +99,7 @@ def build_react_graph():
 
 def build_major_graph():
     """
-    Graph dedicated to onboarding-based major recommendations.
+    온보딩 기반 전공 추천 전용 그래프를 빌드합니다.
     """
     graph = StateGraph(MentorState)
     graph.add_node("recommend", recommend_majors_node)

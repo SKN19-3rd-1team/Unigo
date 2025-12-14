@@ -12,10 +12,10 @@ from django.contrib.auth.decorators import login_required
 
 logger = logging.getLogger("unigo_app")
 
-# Models
+# 모델
 from .models import Conversation, Message, MajorRecommendation, UserProfile
 
-# Add frontend root to path to import backend
+# 백엔드 임포트를 위해 프론트엔드 루트를 경로에 추가
 current_dir = os.path.dirname(os.path.abspath(__file__))
 frontend_dir = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,9 +51,9 @@ def chat(request):
         # Custom image handling
         custom_image_url = None
     if request.user.is_authenticated:
-        # Custom image handling
+        # 커스텀 이미지 처리
         custom_image_url = None
-        # [MODIFIED] Only use custom image if flag is set
+        # [수정됨] 플래그가 설정된 경우에만 커스텀 이미지 사용
         if (
             hasattr(request.user, "profile")
             and request.user.profile.custom_image
@@ -85,11 +85,10 @@ def setting(request):
         return redirect("unigo_app:auth")
 
     context = {}
-    context = {}
 
-    # Custom image handling
+    # 커스텀 이미지 처리
     custom_image_url = None
-    # [MODIFIED] Only use custom image if flag is set
+    # [수정됨] 플래그가 설정된 경우에만 커스텀 이미지 사용
     if (
         hasattr(request.user, "profile")
         and request.user.profile.custom_image
@@ -242,7 +241,7 @@ def logout_view(request):
 def auth_me(request):
     """현재 사용자 정보 조회 API"""
     if request.user.is_authenticated:
-        # Check if user has any chat history
+        # 사용자의 채팅 기록 존재 여부 확인
         has_history = Conversation.objects.filter(user=request.user).exists()
 
         return JsonResponse(
@@ -255,7 +254,7 @@ def auth_me(request):
                     "character": request.user.profile.character
                     if hasattr(request.user, "profile")
                     else "rabbit",
-                    # [MODIFIED] Return custom_image_url only if use_custom_image is True
+                    # [수정됨] use_custom_image가 True일 때만 custom_image_url 반환
                     "custom_image_url": request.user.profile.custom_image.url
                     if hasattr(request.user, "profile")
                     and request.user.profile.custom_image
@@ -428,7 +427,7 @@ def update_character(request):
         # 프로필 가져오기 (없으면 생성)
         profile, created = UserProfile.objects.get_or_create(user=request.user)
 
-        # [MODIFIED] 캐릭터 변경 시 커스텀 이미지 사용 해제
+        # [수정됨] 캐릭터 변경 시 커스텀 이미지 사용 해제
         profile.character = character
         profile.use_custom_image = False
         profile.save()
@@ -456,7 +455,7 @@ def upload_character_image(request):
 
         # 이미지 저장
         profile.custom_image = image_file
-        # [MODIFIED] 이미지 업로드 시 커스텀 이미지 사용 설정
+        # [수정됨] 이미지 업로드 시 커스텀 이미지 사용 설정
         profile.use_custom_image = True
         profile.save()
 

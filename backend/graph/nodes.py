@@ -122,7 +122,7 @@ def _summarize_major_hits(hits, aggregated_scores, limit: int = 10):
     # Pinecone 검색 결과를 전공별로 묶어 상위 doc_type/태그 등을 정리
     per_major: dict[str, dict] = {}
 
-    # [BugFix] Duplicate Removal
+    # [버그 수정] 중복 제거
     # major_id가 다르더라도 major_name이 같으면 중복으로 처리
     seen_names = set()
 
@@ -256,7 +256,7 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
 
 def recommend_majors_node(state: MentorState) -> dict:
     """
-    Build a user profile embedding from onboarding answers and rank majors.
+    온보딩 답변을 사용하여 사용자 프로필 임베딩을 생성하고 전공을 순위별로 추천합니다.
     우선순위: preferred_majors 정확 매칭 > 벡터 유사도 검색
     """
     onboarding_answers = state.get("onboarding_answers") or {}

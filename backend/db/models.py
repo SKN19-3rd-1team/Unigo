@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Float
-from sqlalchemy.dialects.mysql import JSON, LONGTEXT
+from sqlalchemy.dialects.mysql import LONGTEXT
 from backend.db.connection import Base
 
 
@@ -10,14 +10,14 @@ class Major(Base):
     major_id = Column(String(255), unique=True, index=True, nullable=False)
     major_name = Column(String(255), index=True, nullable=False)
 
-    # Text fields
+    # 텍스트 필드
     summary = Column(Text, nullable=True)
     interest = Column(Text, nullable=True)
     property = Column(Text, nullable=True)
     job = Column(Text, nullable=True)  # Comma separated or long text
 
-    # JSON fields for complex structures (Stored as Text to avoid pymysql serialization issues)
-    # Using LONGTEXT for large JSON data
+    # 복잡한 구조를 위한 JSON 필드 (pymysql 직렬화 문제 방지를 위해 Text로 저장)
+    # 대용량 JSON 데이터는 LONGTEXT 사용
     relate_subject = Column(LONGTEXT, nullable=True)
     enter_field = Column(LONGTEXT, nullable=True)
     department_aliases = Column(LONGTEXT, nullable=True)
@@ -26,13 +26,13 @@ class Major(Base):
     main_subject = Column(LONGTEXT, nullable=True)
     university = Column(LONGTEXT, nullable=True)
     chart_data = Column(LONGTEXT, nullable=True)
-    raw_data = Column(LONGTEXT, nullable=True)  # Store original raw json for backup
+    raw_data = Column(LONGTEXT, nullable=True)  # 원본 raw json 백업 저장
 
-    # Statistics
+    # 통계
     salary = Column(Float, nullable=True)
     employment = Column(Text, nullable=True)
 
-    # Extracted stats from chart_data (optional, for easier querying)
+    # chart_data에서 추출된 통계 (쿼리 편의성)
     employment_rate = Column(Float, nullable=True)
     acceptance_rate = Column(Float, nullable=True)
 

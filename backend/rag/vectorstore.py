@@ -39,7 +39,7 @@ _MAJOR_INDEX_CACHE = None
 
 
 def _get_pinecone_client() -> Pinecone:
-    # Pinecone API 클라이언트를 초기화하고 키 누락 시 명확한 에러를 던진다
+    # Pinecone API 클라이언트를 초기화하고 키 누락 시 명확한 에러를 발생시킵니다.
     settings = get_settings()
     if not settings.pinecone_api_key:
         raise ValueError("PINECONE_API_KEY is not set in environment or .env file.")
@@ -47,7 +47,7 @@ def _get_pinecone_client() -> Pinecone:
 
 
 def _list_index_names(client: Pinecone) -> list[str]:
-    # 서버 버전에 따라 달라질 수 있는 list_indexes 응답을 문자열 리스트로 정규화
+    # 서버 버전에 따라 달라질 수 있는 list_indexes 응답을 문자열 리스트로 정규화합니다.
     response = client.list_indexes()
     if isinstance(response, dict) and "indexes" in response:
         items = response["indexes"]
@@ -83,7 +83,7 @@ def _list_index_names(client: Pinecone) -> list[str]:
 
 
 def _infer_embedding_dimension(embeddings) -> int:
-    # 설정에 명시된 차원이 없으면 임베딩 모델에서 한 번 추론하여 차원을 구한다
+    # 설정에 명시된 차원이 없으면 임베딩 모델에서 한 번 추론하여 차원을 구합니다.
     settings = get_settings()
     if settings.pinecone_dimension:
         return settings.pinecone_dimension
@@ -92,7 +92,7 @@ def _infer_embedding_dimension(embeddings) -> int:
 
 
 def _get_region_and_cloud(settings):
-    # serverless 인덱스 생성을 위해 region/cloud 정보를 읽어온다
+    # serverless 인덱스 생성을 위해 region/cloud 정보를 읽어옵니다.
     region = settings.pinecone_region or settings.pinecone_environment
     if not region:
         raise ValueError("Set PINECONE_REGION or PINECONE_ENVIRONMENT for Pinecone.")
@@ -135,7 +135,7 @@ def _get_major_namespace() -> str | None:
 
 
 def get_major_index():
-    # LangChain 외부에서 직접 인덱스 핸들이 필요할 때 사용
+    # LangChain 외부에서 직접 인덱스 핸들이 필요할 때 사용합니다.
     embeddings = get_embeddings()
     return _ensure_major_index(embeddings)
 

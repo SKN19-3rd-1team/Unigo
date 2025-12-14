@@ -34,9 +34,6 @@ class Settings:
 
     # 데이터 경로 설정
     data_dir: str = os.getenv("DATA_DIR", "backend/data")  # 데이터 디렉토리
-    vector_store_path: str = os.getenv(
-        "VECTORSTORE_PATH", "backend/data/processed/courses.parquet"
-    )  # 미사용 (레거시)
     vectorstore_dir: str = os.getenv(
         "VECTORSTORE_DIR", "backend/data/vector_db"
     )  # Vector DB 저장 경로
