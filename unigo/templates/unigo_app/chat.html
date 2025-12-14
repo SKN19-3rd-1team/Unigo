@@ -60,6 +60,7 @@
                 <br><br>
                 이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
             </div>
+            <div class="conv-list-container"></div>
             <!-- TODO: 이후 챗봇 시스템이 연결되면 우측 패널에 실제 추천 결과를 렌더링할 예정 -->
             {% if custom_image_url %}
             <img src="{{ custom_image_url }}" alt="User Custom Character" class="result-rabbit"
@@ -69,6 +70,19 @@
                 class="result-rabbit">
             {% endif %}
         </section>
+
+        <!-- 대화 목록 템플릿 -->
+        <template id="conv-list-template">
+            <div class="conv-list">
+                <div class="conv-list-header">
+                    <h3 class="conv-list-title">과거 대화 목록</h3>
+                    <button type="button" class="conv-back-btn">닫기</button>
+                </div>
+                <div class="conv-list-scroll">
+                    <ul class="conv-list-ul"></ul>
+                </div>
+            </div>
+        </template>
     </div>
 </div>
 {% endblock %}
