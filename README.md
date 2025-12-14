@@ -131,7 +131,9 @@ python manage.py runserver
 ## 📚 주요 기능
 
 ## 🔑 사용자 인증 및 대화 기록 (New)
+
 새롭게 추가된 사용자 인증 기능을 통해 대화 기록을 관리할 수 있습니다:
+
 - **회원가입/로그인**: Username 또는 Email을 통한 간편한 계정 생성
 - **대화 기록 저장**: 로그인 시 모든 대화와 전공 추천 이력이 DB에 저장됩니다.
 - **세션 유지**: 비로그인 사용자는 세션 ID 기반으로 단기 기록을 유지합니다.
@@ -178,23 +180,20 @@ python -m backend.rag.build_major_index
 
 ### 1. 온보딩 기반 전공 추천 시스템
 
-사용자에게 4가지 질문을 통해 프로파일을 수집하고 맞춤형 전공을 추천합니다:
+사용자에게 **7가지 심층 질문**을 통해 프로파일을 정밀하게 수집하고 맞춤형 전공을 추천합니다:
 
-1. **선호 고교 과목**: 좋아하는 과목과 이유
-2. **흥미 및 취미**: 학교 밖 관심사
-3. **희망 연봉**: 졸업 후 목표 연봉
-4. **희망 학과**: 진학하고 싶은 전공
+1. **선호 교과목**: 고교 과목 흥미도
+2. **관심사 및 활동**: 취미, 동아리 등 교외 활동
+3. **관심 활동 유형**: 선호하는 '일의 스타일' (예: 분석, 창작, 봉사)
+4. **선호 환경**: 협업 vs 독립, 이론 vs 실습 등
+5. **가치관**: 직업 선택의 기준 (안정성, 소득, 기여 등)
+6. **관심 주제**: 평소 소비하는 콘텐츠 주제 (우주, 역사, 기술 등)
+7. **학습 스타일**: 이론 탐구 vs 실전 활동 선호도
 
-#### 차등 점수 시스템 (Tiered Scoring)
+#### 추천 알고리즘 특징
 
-사용자가 명시한 희망 전공에 대해 정확도에 따른 차등 점수를 부여합니다:
-
-| 티어 | 점수 | 조건 | 예시 |
-|------|------|------|------|
-| Tier 1 | 20.0 | 정확히 일치 | "컴퓨터공학" == "컴퓨터공학" |
-| Tier 2 | 15.0 | 접두어 일치 | "컴퓨터공학" in "컴퓨터공학**과**" |
-| Tier 3 | 10.0 | 포함 | "컴퓨터" in "정보**컴퓨터**공학부" |
-| Tier 4 | 5.0 | 벡터 유사도 | 의미론적으로 유사한 전공 |
+- **벡터 유사도 기반**: 단순 키워드 매칭을 넘어, 학생의 성향(Property)과 전공의 특성(Major Detail)을 벡터 공간에서 비교 분석합니다.
+- **다각도 매칭**: `Interest`(흥미), `Property`(특성), `Job`(직업), `Subject`(교과목) 등 다양한 차원에서 유사도를 계산하여 종합적인 추천을 제공합니다.
 
 ### 2. RAG 기반 대화형 챗봇
 
@@ -207,10 +206,10 @@ python -m backend.rag.build_major_index
 
 #### 사용 가능한 툴 (Tools)
 
-1. `list_departments`: 학과 목록 검색
-2.  - `get_universities_by_department(department_name)`: 특정 학과 개설 대학 목록 조회 (SQL + Vector Semantic Search)
-    - **Vector Search**: "컴퓨터" 검색 시 "소프트웨어", "인공지능" 등 의미적으로 유사한 학과분류를 자동 확장하여 검색
-  - `get_major_career_info(major_name)`: 학과 진로/취업률/연봉 정보 조회 (SQL)
+1. `list_departments`: 학과 목록 검색 (일반 모드에서 사용)
+2. `get_universities_by_department(department_name)`: 특정 학과 개설 대학 목록 조회 (SQL + Vector Semantic Search)
+   - **Vector Search**: "컴퓨터" 검색 시 "소프트웨어", "인공지능" 등 의미적으로 유사한 학과분류를 자동 확장하여 검색
+3. `get_major_career_info(major_name)`: 학과 진로/취업률/연봉 정보 조회 (SQL)
 4. `get_university_admission_info`: 대학별 입시 정보
 5. `get_search_help`: 검색 도움말
 
@@ -221,6 +220,7 @@ python -m backend.rag.build_major_index
 ## 🛠️ 기술 스택
 
 ### Backend
+
 - **Python 3.10+**
 - **LangChain**: LLM 오케스트레이션
 - **LangGraph**: 상태 기반 에이전트 그래프
@@ -230,11 +230,13 @@ python -m backend.rag.build_major_index
 - **OpenAI Embeddings**: 텍스트 임베딩
 
 ### Frontend
+
 - **Django 5.x**: 웹 프레임워크
 - **HTML/CSS**: 마크업 및 스타일링
 - **Vanilla JavaScript**: 클라이언트 로직 (프레임워크 없음)
 
 ### Data
+
 - **MySQL**: 통합 데이터베이스 (RAG + Web App)
 - **Pinecone**: 벡터 데이터베이스
 - **커리어넷 & KCUE**: 원천 데이터 출처
@@ -242,17 +244,21 @@ python -m backend.rag.build_major_index
 ## 📖 API 엔드포인트
 
 ### Auth API (New)
+
 - `POST /api/auth/signup`: 회원가입
 - `POST /api/auth/login`: 로그인 (Username or Email)
 - `POST /api/auth/logout`: 로그아웃
 - `GET /api/auth/me`: 현재 사용자 정보
 
 ### Feature API
+
 - `POST /api/chat`: 일반 챗봇 대화 API (DB 저장 포함)
 - `POST /api/onboarding`: 전공 추천 API (DB 저장 포함)
 
 ### POST `/api/chat`
+
 **Request:**
+
 ```json
 {
   "message": "컴퓨터공학과에 대해 알려줘",
@@ -262,7 +268,9 @@ python -m backend.rag.build_major_index
 ```
 
 ### POST `/api/onboarding`
+
 **Request:**
+
 ```json
 {
   "answers": {
@@ -279,17 +287,21 @@ python -m backend.rag.build_major_index
 ### 주요 파일 및 역할
 
 #### Backend
+
 - **`backend/graph/nodes.py`**: 전공 추천 로직 및 차등 점수 시스템
 - **`backend/rag/tools.py`**: LangChain 툴 정의
 - **`backend/main.py`**: `run_mentor()`, `run_major_recommendation()` 함수
 
 #### Frontend
+
 - **`unigo/unigo_app/views.py`**: Django API 엔드포인트
 - **`unigo/static/js/chat.js`**: 채팅 UI 로직, 온보딩 플로우
 - **`unigo/templates/unigo_app/chat.html`**: 채팅 페이지 템플릿
 
 ### DB 쿼리 로깅
+
 디버깅을 위해 실행되는 모든 DB 쿼리와 결과 정보가 파일로 저장됩니다:
+
 - **로그 위치**: `backend/db/logs/query_log.log`
 - **로깅 내용**: SQL 쿼리, 파라미터, 실행 시간, 영향 받은 행 개수
 
@@ -332,6 +344,7 @@ python test_llm.py
 ```
 
 주요 검증 항목:
+
 - **Hallucination 방지**: 대학-학과 매핑이 정확한지 확인 (예: 한양대 컴공 vs 컴퓨터소프트웨어학부)
 - **중복 추천 방지**: 전공 추천 결과에 중복된 학과가 없는지 확인
 - **입시 정보 검색**: 정확한 학과명이 없을 때 유사 학과 추천(Fallback) 동작 확인
@@ -355,6 +368,7 @@ python manage.py runserver 8001
 **방법 1 - .env 파일에서 PROJECT_ROOT 설정 (권장)**:
 
 `.env` 파일을 열어 `PROJECT_ROOT` 설정:
+
 ```env
 # Windows
 PROJECT_ROOT=C:\Users\user\github\frontend
@@ -364,6 +378,7 @@ PROJECT_ROOT=/home/user/github/frontend
 ```
 
 **방법 2 - PYTHONPATH 환경 변수 설정**:
+
 ```bash
 # PYTHONPATH 설정 (Windows)
 set PYTHONPATH=%PYTHONPATH%;C:\path\to\frontend
