@@ -34,18 +34,12 @@ class Settings:
 
     # 데이터 경로 설정
     data_dir: str = os.getenv("DATA_DIR", "backend/data")  # 데이터 디렉토리
-    raw_json: str = os.getenv(
-        "RAW_JSON", "backend/data/merged_university_courses.json"
-    )  # 원본 JSON 파일 (glob 패턴 지원)
     vector_store_path: str = os.getenv(
         "VECTORSTORE_PATH", "backend/data/processed/courses.parquet"
     )  # 미사용 (레거시)
     vectorstore_dir: str = os.getenv(
         "VECTORSTORE_DIR", "backend/data/vector_db"
     )  # Vector DB 저장 경로
-    major_detail_path: str = os.getenv(
-        "MAJOR_DETAIL_PATH", "backend/data/major_detail.json"
-    )  # 전공 세부 정보 데이터
 
     # MySQL Database 설정
     mysql_host: str = os.getenv("MYSQL_HOST", "localhost")

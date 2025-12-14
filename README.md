@@ -288,6 +288,11 @@ python -m backend.rag.build_major_index
 - **`unigo/static/js/chat.js`**: 채팅 UI 로직, 온보딩 플로우
 - **`unigo/templates/unigo_app/chat.html`**: 채팅 페이지 템플릿
 
+### DB 쿼리 로깅
+디버깅을 위해 실행되는 모든 DB 쿼리와 결과 정보가 파일로 저장됩니다:
+- **로그 위치**: `backend/db/logs/query_log.log`
+- **로깅 내용**: SQL 쿼리, 파라미터, 실행 시간, 영향 받은 행 개수
+
 ### 점수 시스템 조정
 
 `backend/graph/nodes.py`의 상수를 수정하여 점수 시스템을 조정할 수 있습니다:

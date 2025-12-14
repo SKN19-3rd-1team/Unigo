@@ -114,7 +114,7 @@ def run_major_recommendation(
     온보딩 단계에서 수집한 정보를 기반으로 Pinecone 전공 추천을 실행합니다.
 
     Args:
-        onboarding_answers: 선호 과목, 취미, 희망 연봉, 희망 학과 등 사용자 입력
+        onboarding_answers: 선호 과목, 취미, 장래 희망, 성격/장점, 희망 학과 등 사용자 입력
         question: 선택 사항, 추가 맥락으로 사용할 마지막 사용자 발화
 
     Returns:

@@ -24,7 +24,6 @@ from typing import List, Dict, Any, Optional, Tuple
 from langchain_core.tools import tool
 import re
 import json
-from pathlib import Path
 from difflib import SequenceMatcher
 from backend.config import get_settings, get_llm
 from langchain_core.prompts import ChatPromptTemplate
@@ -41,9 +40,6 @@ DEFAULT_SEARCH_LIMIT = 10
 MAX_UNIVERSITY_RESULTS = 200
 UNIVERSITY_PREVIEW_COUNT = 5
 VECTOR_SEARCH_MULTIPLIER = 3
-
-# 파일 경로
-MAJOR_CATEGORIES_FILE = "major_categories.json"
 
 # 출력 포맷
 SEPARATOR_LINE = "=" * 80
@@ -167,35 +163,34 @@ def _dedup_preserve_order(items: List[str]) -> List[str]:
 
 def _load_major_categories() -> Dict[str, List[str]]:
     """
-    backend/data/major_categories.json 파일에서 전공 분류 정보를 로드합니다.
-
-    파일 구조:
-    {
-        "공학계열": ["컴퓨터 / 소프트웨어 / 인공지능", "전기 / 전자 / 통신", ...],
-        "자연계열": ["수학 / 통계", "물리 / 화학", ...],
-        ...
-    }
-
-    Returns:
-        전공 카테고리 딕셔너리 (대분류 -> 세부분류 리스트)
+    DB(MajorCategory)에서 전공 분류 정보를 로드합니다.
     """
+    from backend.db.connection import SessionLocal
+    from backend.db.models import MajorCategory
+
+    session = SessionLocal()
+    categories = {}
     try:
-        # 현재 파일(tools.py)의 위치: backend/rag/
-        # 데이터 파일 위치: backend/data/major_categories.json
-        current_dir = Path(__file__).resolve().parent
-        project_root = current_dir.parent  # backend/
-        json_path = project_root / "data" / MAJOR_CATEGORIES_FILE
+        results = session.query(MajorCategory).all()
+        for row in results:
+            if row.major_names:
+                try:
+                    # JSON 문자열 파싱
+                    loaded_list = json.loads(row.major_names)
+                    if isinstance(loaded_list, list):
+                        categories[row.category_name] = loaded_list
+                except json.JSONDecodeError:
+                    pass
 
-        if json_path.exists():
-            return json.loads(json_path.read_text(encoding="utf-8"))
+        if not categories:
+            print("⚠️ Major categories not found in DB.")
 
-        print(f"⚠️ Major categories file not found at: {json_path}")
-        return {}
-
+        return categories
     except Exception as e:
-        # 파일 로드 실패 시 에러 메시지 출력 및 빈 딕셔너리 반환
-        print(f"⚠️ Failed to load major categories: {e}")
+        print(f"⚠️ Failed to load major categories from DB: {e}")
         return {}
+    finally:
+        session.close()
 
 
 # 전공 카테고리 전역 변수 (모듈 로드 시 1회만 실행)
@@ -1140,9 +1135,9 @@ def get_major_career_info(major_name: str) -> Dict[str, Any]:
     특정 전공의 상세 정보(진로, 취업률, 연봉, 관련 자격증 등)를 조회하는 툴입니다.
 
     [중요: 일반 정보 원칙]
-    - 이 툴은 **특정 대학의 데이터가 아닌, 일반적인 데이터**만 제공합니다.
-    - 사용자가 특정 대학과 학과에 대한 정보를 물어보면, 이 툴을 사용하되 **결과를 설명할 때 특정 대학을 지칭하지 마세요.**
-    - "일반적인 컴퓨터공학과의 취업률은 70%입니다." 형태로만 답변해야 합니다.
+    - 이 툴은 **특정 대학의 데이터가 아닌, 국가 표준(커리어넷) 데이터**만 제공합니다.
+    - 사용자가 특정 대학과 학과에 대한 정보를 물어보면, 이 툴을 사용하되 **결과를 설명할 때 절대 특정 대학의 정보인 것처럼 답변하지 마세요.**
+    - "한양대 컴퓨터공학과의 취업률은..." (X) -> "한양대학교의 구체적인 취업률 공시 자료는 없으나, 국가 표준 데이터에 따른 일반적인 컴퓨터공학과의 취업률은..." (O)
 
     [호출 시점]
     - **취업률, 연봉, 진로, 졸업 후 직업** 관련 질문은 대학명이 포함되어 있어도 무조건 이 툴을 사용하세요.
@@ -1212,9 +1207,11 @@ def get_major_career_info(major_name: str) -> Dict[str, Any]:
         "acceptance_rate": record.acceptance_rate,
         "annual_salary": annual_salary,  # 연봉 정보 추가
         "warning_context": (
-            "⚠️ 주의: 이 정보는 '커리어넷'에서 제공하는 [표준 학과]에 대한 일반적인 정보입니다. "
-            "특정 대학의 실제 커리큘럼이나 진로와는 다를 수 있음을 사용자에게 반드시 고지하세요."
+            "⚠️ [치명적 경고] 이 정보는 특정 대학(예: 한양대, 서울대 등)의 실제 데이터가 아닙니다. "
+            "반드시 '커리어넷'의 [국가 표준 데이터]임을 명시해야 합니다. "
+            "답변 시 'OO대학교의 자료는 아니지만, 일반적인 OO학과의 정보에 따르면...'이라는 문구를 필수적으로 포함하세요."
         ),
+        "data_source_disclaimer": "본 데이터는 대학별 개별 공시 자료가 아닌, 커리어넷의 표준 학과 정보입니다.",
     }
 
     # 선택적 필드 추가
