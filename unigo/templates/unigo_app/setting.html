@@ -10,7 +10,15 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-user-box">
-            <div class="sidebar-avatar"></div>
+            <div class="sidebar-avatar">
+                {% if custom_image_url %}
+                <img src="{{ custom_image_url }}" alt="Profile"
+                    style="width:100%; height:100%; object-fit:contain; border-radius:50%;">
+                {% else %}
+                <img src="{% static 'images/'|add:character_image|add:'.png' %}" alt="Profile"
+                    style="width:100%; height:100%; object-fit:contain;">
+                {% endif %}
+            </div>
             <div class="sidebar-username">{{ user.username }}</div>
             <div class="sidebar-email">{{ user.email }}</div>
         </div>
@@ -19,6 +27,15 @@
             <!-- [NEW] 캐릭터 설정 페이지로 이동 -->
             <a href="{% url 'unigo_app:character_select' %}" class="sidebar-btn"
                 style="text-decoration:none; color:inherit; display:block;">캐릭터 설정</a>
+
+            <!-- Custom Image Upload -->
+            <div style="padding: 10px 20px;">
+                <label for="custom-image-upload"
+                    style="cursor:pointer; display:block; padding:10px; background:#eee; text-align:center; border-radius:8px; font-size:0.9rem;">
+                    이미지 파일 업로드
+                </label>
+                <input type="file" id="custom-image-upload" accept="image/*" style="display:none;">
+            </div>
         </div>
     </aside>
 
@@ -305,6 +322,37 @@
                 }
             });
         });
+
+        // Custom Image Upload
+        const uploadInput = document.getElementById('custom-image-upload');
+        if (uploadInput) {
+            uploadInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    const response = await fetch('/api/setting/upload-character-image', {
+                        method: 'POST',
+                        body: formData
+                        // No Content-Type header for FormData, browser sets it with boundary
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert('이미지가 변경되었습니다.');
+                        location.reload();
+                    } else {
+                        alert(data.error || '업로드 실패');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('업로드 중 오류 발생');
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

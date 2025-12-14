@@ -61,8 +61,13 @@
                 이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
             </div>
             <!-- TODO: 이후 챗봇 시스템이 연결되면 우측 패널에 실제 추천 결과를 렌더링할 예정 -->
+            {% if custom_image_url %}
+            <img src="{{ custom_image_url }}" alt="User Custom Character" class="result-rabbit"
+                style="border-radius: 20px;">
+            {% else %}
             <img src="{% get_static_prefix %}images/{{ character_image|default:'rabbit' }}.png" alt="User Character"
                 class="result-rabbit">
+            {% endif %}
         </section>
     </div>
 </div>
@@ -73,7 +78,13 @@
 <script>
     // Server-side injection to ensure immediate sync
     window.USER_CHARACTER = '{{ character_code|default:"rabbit" }}';
+    window.USER_CUSTOM_IMAGE_URL = '{{ custom_image_url|default:"" }}';
     localStorage.setItem('user_character', window.USER_CHARACTER);
+    if (window.USER_CUSTOM_IMAGE_URL) {
+        localStorage.setItem('user_custom_image', window.USER_CUSTOM_IMAGE_URL);
+    } else {
+        localStorage.removeItem('user_custom_image');
+    }
 </script>
 {% endif %}
 <script src="{% static 'js/chat.js' %}"></script>

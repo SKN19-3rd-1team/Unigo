@@ -95,14 +95,31 @@ const loadState = async () => {
         if (authData.is_authenticated) {
             console.log("User is authenticated. Fetching server history...");
             // [NEW] Update character image
-            if (authData.user && authData.user.character) {
-                console.log("Loading character from server:", authData.user.character);
-                updateCharacterImage(authData.user.character);
-                localStorage.setItem('user_character', authData.user.character);
+            if (authData.user) {
+                // [NEW] Handle custom image vs character persistence
+                if (authData.user.custom_image_url) {
+                    console.log("Loading custom image from server:", authData.user.custom_image_url);
+                    updateCharacterImage(authData.user.character, authData.user.custom_image_url);
+                    localStorage.setItem('user_custom_image', authData.user.custom_image_url);
+                } else {
+                    // If server says no custom image (or use_custom_image is False), remove from local
+                    localStorage.removeItem('user_custom_image');
+
+                    if (authData.user.character) {
+                        console.log("Loading character from server:", authData.user.character);
+                        updateCharacterImage(authData.user.character);
+                    }
+                }
+
+                if (authData.user.character) {
+                    localStorage.setItem('user_character', authData.user.character);
+                }
             } else {
                 // Fallback: check local storage just in case server returned nothing (guest/error?)
                 const saved = localStorage.getItem('user_character');
-                if (saved) updateCharacterImage(saved);
+                const savedCustom = localStorage.getItem('user_custom_image');
+                if (savedCustom) updateCharacterImage(saved, savedCustom);
+                else if (saved) updateCharacterImage(saved);
             }
             await fetchHistory();
             console.log("User is authenticated. Initializing fresh chat session...");
@@ -199,15 +216,23 @@ const detectReloadAndReset = () => {
 
 // Helper to get avatar URL
 const getAvatarUrl = (type) => {
-    // Use the user's selected character for both AI (Persona) and User avatar
-    // Check window.USER_CHARACTER first (server injected), then localStorage
+    // [MODIFIED] Check for custom image first for BOTH 'user' and 'ai'
+    // Since the "Character" setting controls the AI Persona (and potentially User avatar),
+    // the Custom Image should also apply to the AI to replace the character.
+
+    // Check custom image first
+    const customImg = (window.USER_CUSTOM_IMAGE_URL && window.USER_CUSTOM_IMAGE_URL !== '')
+        ? window.USER_CUSTOM_IMAGE_URL
+        : localStorage.getItem('user_custom_image');
+
+    if (customImg) return customImg;
+
+    // Fallback to character if no custom image
     const savedChar = (window.USER_CHARACTER && window.USER_CHARACTER !== 'None')
         ? window.USER_CHARACTER
         : localStorage.getItem('user_character');
-
-    let filename = savedChar || 'rabbit'; // Default to rabbit
+    let filename = savedChar || 'rabbit';
     if (filename === 'hedgehog') filename = 'hedgehog_ver1';
-
     return `/static/images/${filename}.png`;
 };
 
@@ -732,11 +757,18 @@ if (chatInput) {
 
 // Start
 init();
-function updateCharacterImage(characterId) {
-    console.log("updateCharacterImage called with:", characterId);
+function updateCharacterImage(characterId, customImageUrl = null) {
+    console.log("updateCharacterImage called with:", characterId, customImageUrl);
     const imgEl = document.querySelector('.result-rabbit');
     if (!imgEl) {
         console.warn(".result-rabbit element not found!");
+        return;
+    }
+
+    if (customImageUrl) {
+        imgEl.src = customImageUrl;
+        imgEl.alt = 'User Custom Character';
+        imgEl.style.borderRadius = '20px'; // Style for custom image
         return;
     }
 
