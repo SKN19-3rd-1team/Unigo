@@ -124,12 +124,70 @@
 }
 
 .bubble {
-    padding: 16px 24px;
+    padding: 10px 16px;
     border-radius: 22px;
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.6;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     word-break: break-word;
+}
+
+/* Markdown Styles inside Bubble */
+.bubble p {
+    margin: 0;
+    padding: 3px;
+}
+
+.bubble p:not(:last-child) {
+    margin-bottom: 3px;
+}
+
+.bubble ul,
+.bubble ol {
+    margin: 8px 0 8px 24px;
+    padding: 3px;
+}
+
+.bubble li {
+    margin-bottom: 3px;
+}
+
+.bubble strong {
+    font-weight: 600;
+}
+
+.bubble em {
+    font-style: italic;
+}
+
+.bubble a {
+    color: #4A90E2;
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.bubble code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95em;
+    color: #C0392B;
+}
+
+.bubble pre {
+    background: #F8F9FA;
+    padding: 3px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 3px 0;
+}
+
+.bubble pre code {
+    background: transparent;
+    padding: 3px;
+    color: #333;
+    font-size: 0.9em;
 }
 
 .bubble-container.user .bubble {

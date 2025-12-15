@@ -296,10 +296,8 @@ const createBubble = (text, type) => {
     const bubble = document.createElement('div');
     bubble.classList.add('bubble');
 
-    let formattedText = text.replace(/\n/g, '<br>');
-    formattedText = formattedText.replace(/\\\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
-
-    bubble.innerHTML = formattedText;
+    // Use marked.js for parsing markdown
+    bubble.innerHTML = marked.parse(text);
     container.appendChild(bubble);
 
     return container;
@@ -336,7 +334,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
     container.appendChild(bubble);
 
     chatCanvas.appendChild(container);
-    
+
     const startTime = Date.now();
     let charIndex = 0;
     bubble.innerHTML = '';
@@ -351,9 +349,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
         if (targetCount > charIndex) {
             charIndex = targetCount;
             const currentText = text.substring(0, charIndex);
-            let formattedText = currentText.replace(/\n/g, '<br>');
-            formattedText = formattedText.replace(/\\\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
-            bubble.innerHTML = formattedText;
+            bubble.innerHTML = marked.parse(currentText);
             chatCanvas.scrollTop = chatCanvas.scrollHeight;
         }
 
@@ -545,9 +541,7 @@ const handleChatInput = async (text) => {
                         } else if (data.type === 'content') {
                             finalResponse = data.content; // Store final content
                             // Format with markdown links and line breaks
-                            let formattedText = finalResponse.replace(/\n/g, '<br>');
-                            formattedText = formattedText.replace(/\\\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#0066cc; text-decoration:underline;">$1</a>');
-                            aiBubble.innerHTML = formattedText;
+                            aiBubble.innerHTML = marked.parse(finalResponse);
                         } else if (data.type === 'error') {
                             finalResponse = data.content;
                             aiBubble.innerHTML = `<span style="color:red;">${data.content}</span>`;
@@ -765,6 +759,7 @@ const loadConversation = async (convId) => {
         currentConversationId = conv.id;
         onboardingState.isComplete = true;
         saveState();
+        renderHistory(); // UI 업데이트
 
     } catch (e) {
         console.error('Error loading conversation:', e);
@@ -840,10 +835,10 @@ function updateCharacterImage(characterId, customImageUrl = null) {
 
     let filename = characterId || 'rabbit';
     if (characterId === 'hedgehog') filename = 'hedgehog_ver1';
-    
+
     imgEl.src = `/static/images/${filename}.png`;
     imgEl.alt = `${Object.keys({
-        'rabbit': '토끼', 'bear': '곰', 'fox': '여우', 'hedgehog': '고슴도치', 'koala': '코알라', 
+        'rabbit': '토끼', 'bear': '곰', 'fox': '여우', 'hedgehog': '고슴도치', 'koala': '코알라',
         'otter': '수달', 'penguin': '펭귄', 'raccoon': '너구리', 'sloth': '나무늘보', 'turtle': '거북이'
     }).find(key => key === characterId) || 'User Character'}`;
 }
