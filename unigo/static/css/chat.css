@@ -203,9 +203,9 @@
     border-radius: 4px 22px 22px 22px;
 }
 
-/* spinner 애니메이션 */
+/* 채팅 로딩 스타일 */
 
-.spinner {
+.bubble-spinner {
     display: inline-block;
     width: 20px;
     height: 20px;
@@ -219,7 +219,7 @@
     to { transform: rotate(360deg); }
 }
 
-.spinner-container {
+.bubble-spinner-container {
     display: inline-flex;
     flex-direction: row;
     align-items: center;

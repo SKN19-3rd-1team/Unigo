@@ -415,8 +415,8 @@ const handleOnboardingInput = async (text) => {
 // 스피너 생성 함수
 const createSpinner = (message = '응답 생성 중...') => {
     return `
-        <div class="spinner-container">
-            <div class="spinner"></div>
+        <div class="bubble-spinner-container">
+            <div class="bubble-spinner"></div>
             <span>${message}</span>
         </div>
     `;
