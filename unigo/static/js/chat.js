@@ -307,14 +307,6 @@ const createBubble = (text, type) => {
     bubble.classList.add('bubble');
 
     // Use marked.js for parsing markdown
-    const markedOptions = {
-        renderer: new marked.Renderer(),
-        gfm: true, // Enable GitHub Flavored Markdown
-        breaks: true // Enable GFM line breaks
-    };
-    markedOptions.renderer.link = function(href, title, text) {
-        return `<a target="_blank" rel="noopener noreferrer" href="${href}" title="${title}">${text}</a>`;
-    };
     bubble.innerHTML = marked.parse(text, markedOptions);
     container.appendChild(bubble);
 
