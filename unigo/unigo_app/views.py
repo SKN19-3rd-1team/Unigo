@@ -803,6 +803,39 @@ def list_conversations(request):
 
 
 @login_required
+def delete_conversation(request, conversation_id):
+    """
+    대화 삭제 API
+    로그인 사용자의 특정 대화 세션을 삭제합니다. 삭제 시 관련 메시지도 함께 삭제됩니다(CASCADE).
+
+    Args:
+        request (HttpRequest): 요청 객체
+        conversation_id (int): 삭제할 대화 ID
+
+    Returns:
+        JsonResponse: 성공/실패 메시지
+    """
+    if request.method != "DELETE" and request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+        conversation.delete()
+        logger.info(
+            f"Conversation {conversation_id} deleted by user {request.user.username}"
+        )
+        return JsonResponse({"message": "Conversation deleted successfully"})
+
+    except Conversation.DoesNotExist:
+        return JsonResponse(
+            {"error": "Conversation not found or permission denied"}, status=404
+        )
+    except Exception as e:
+        logger.error(f"Error deleting conversation: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
 def load_conversation(request):
     """
     특정 conversation의 메시지들을 반환

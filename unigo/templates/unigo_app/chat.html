@@ -87,8 +87,11 @@
         <!-- 개별 아이템 템플릿 추가 -->
         <template id="conv-item-template">
             <li data-id="">
-                <strong class="conv-title"></strong><br>
-                <small class="conv-meta"></small><br>
+                <div class="conv-list-header">
+                    <strong class="conv-title"></strong>
+                    <button type="button" class="conv-delete-btn" title="삭제">🗑️</button>
+                </div>
+                <small class="conv-meta"></small>
                 <span class="conv-preview"></span>
             </li>
         </template>
