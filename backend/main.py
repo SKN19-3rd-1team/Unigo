@@ -112,6 +112,43 @@ def run_mentor(
         return "답변을 생성할 수 없습니다."
 
 
+def run_mentor_stream(
+    question: str,
+    chat_history: list[dict] | None = None,
+    mode: str = "react",
+):
+    """
+    멘토 시스템을 실행하고 결과를 스트리밍합니다 (제너레이터).
+    views.py의 stream_chat_responses에서 사용됩니다.
+
+    Args:
+        question (str): 사용자 질문
+        chat_history (list): 대화 기록
+        mode (str): 실행 모드
+
+    Yields:
+        dict: LangGraph 스트리밍 청크
+    """
+    graph = get_graph(mode=mode)
+
+    messages = []
+    if chat_history:
+        for msg in chat_history:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(HumanMessage(content=msg["content"]))
+
+    messages.append(HumanMessage(content=question))
+
+    state = {
+        "messages": messages,
+    }
+
+    # stream_mode="updates"를 사용하여 각 노드의 업데이트 사항을 스트리밍
+    return graph.stream(state, stream_mode="updates")
+
+
 def run_major_recommendation(
     onboarding_answers: dict, question: str | None = None
 ) -> dict:

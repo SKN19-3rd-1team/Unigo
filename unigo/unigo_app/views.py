@@ -33,9 +33,9 @@ except ImportError as e:
     summarize_conversation_history = None
 
 
-# ============================================ 
+# ============================================
 # Page Views
-# ============================================ 
+# ============================================
 
 
 def auth(request):
@@ -117,6 +117,7 @@ def character_select(request):
         return redirect("unigo_app:auth")
     return render(request, "unigo_app/character_select.html")
 
+
 def home(request):
     """
     홈 페이지 (루트 경로)
@@ -128,9 +129,9 @@ def home(request):
     return redirect("unigo_app:auth")
 
 
-# ============================================ 
+# ============================================
 # Auth API
-# ============================================ 
+# ============================================
 
 
 def auth_signup(request):
@@ -242,6 +243,7 @@ def auth_login(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+
 def auth_logout(request):
     """로그아웃 API"""
     if request.method != "POST":
@@ -249,6 +251,7 @@ def auth_logout(request):
 
     logout(request)
     return JsonResponse({"message": "Logout successful"})
+
 
 def logout_view(request):
     """
@@ -259,6 +262,7 @@ def logout_view(request):
     # 클라이언트를 인증 페이지로 리다이렉트하게 한다.
     logout(request)
     return render(request, "unigo_app/logout.html")
+
 
 def auth_me(request):
     """현재 사용자 정보 조회 API"""
@@ -288,6 +292,7 @@ def auth_me(request):
         )
     return JsonResponse({"is_authenticated": False})
 
+
 def auth_check_email(request):
     """이메일 중복 확인 API (Public)"""
     if request.method != "POST":
@@ -309,6 +314,7 @@ def auth_check_email(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
 def auth_check_username(request):
     """아이디(닉네임) 중복 확인 API (Public)"""
@@ -333,9 +339,9 @@ def auth_check_username(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================ 
+# ============================================
 # Setting API
-# ============================================ 
+# ============================================
 
 
 @login_required
@@ -490,9 +496,9 @@ def upload_character_image(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================ 
+# ============================================
 # Setting API
-# ============================================ 
+# ============================================
 
 
 def delete_account(request):
@@ -541,65 +547,49 @@ def delete_account(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================ 
+# ============================================
 # Chat & Feature API
-# ============================================ 
+# ============================================
 
-def stream_chat_responses(
 
-    conversation, message_text, chat_history_for_ai
-
-):
-
+def stream_chat_responses(conversation, message_text, chat_history_for_ai):
     """채팅 응답을 스트리밍하는 제너레이터"""
 
     if not run_mentor_stream:
-
         error_msg = "챗봇 백엔드가 연결되지 않았습니다. 관리자에게 문의하세요."
 
         yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
 
         return
 
-
-
     full_response_content = ""
 
     try:
-
         stream = run_mentor_stream(
-
             question=message_text, chat_history=chat_history_for_ai, mode="react"
-
         )
 
-        
-
         for chunk in stream:
-
             step_name = list(chunk.keys())[0]
 
-
-
             if step_name == "agent":
-
-                agent_messages = chunk['agent'].get('messages', [])
+                agent_messages = chunk["agent"].get("messages", [])
 
                 if agent_messages:
-
                     last_ai_message = agent_messages[-1]
-
-                    
 
                     # 도구 사용 결정 시 상태 업데이트
 
-                    if hasattr(last_ai_message, 'tool_calls') and last_ai_message.tool_calls:
-
+                    if (
+                        hasattr(last_ai_message, "tool_calls")
+                        and last_ai_message.tool_calls
+                    ):
                         # tool_calls가 비어있지 않은지 확인
 
                         if last_ai_message.tool_calls:
-
-                            tool_names = [call['name'] for call in last_ai_message.tool_calls]
+                            tool_names = [
+                                call["name"] for call in last_ai_message.tool_calls
+                            ]
 
                             status_message = f"Tool: {', '.join(tool_names)}"
 
@@ -607,22 +597,16 @@ def stream_chat_responses(
 
                             yield f"data: {json.dumps(data)}\n\n"
 
-
-
                     # 최종 답변 생성 시 내용 전송
 
                     if last_ai_message.content:
-
                         full_response_content = last_ai_message.content
 
                         data = {"type": "content", "content": full_response_content}
 
                         yield f"data: {json.dumps(data)}\n\n"
 
-            
-
     except Exception as e:
-
         logger.error(f"AI Stream Error: {e}", exc_info=True)
 
         data = {"type": "error", "content": "AI 서버에서 오류가 발생했습니다."}
@@ -631,23 +615,14 @@ def stream_chat_responses(
 
         return
 
-
-
     # 전체 응답 DB 저장
 
     if full_response_content:
-
         Message.objects.create(
-
             conversation=conversation, role="assistant", content=full_response_content
-
         )
 
-        logger.info(
-
-            f"Streamed response saved to DB for conversation {conversation.id}"
-
-        )
+        logger.info(f"Streamed response saved to DB for conversation {conversation.id}")
 
 
 def chat_api(request):
@@ -727,7 +702,7 @@ def chat_api(request):
             content_type="text/event-stream",
         )
         response["Cache-Control"] = "no-cache"
-        
+
         # conversation_id를 헤더로 전달 (클라이언트가 첫 메시지 후 ID를 알 수 있도록)
         response["X-Conversation-Id"] = conversation.id
         if not request.user.is_authenticated:
@@ -808,10 +783,8 @@ def save_chat_history(request):
                 content=msg.get("content", ""),
                 metadata=msg.get("metadata"),
             )
-        
-        logger.info(
-            f"Chat history saved for user={request.user.username}"
-        )
+
+        logger.info(f"Chat history saved for user={request.user.username}")
 
         return JsonResponse(
             {
@@ -929,12 +902,13 @@ def reset_chat_history(request):
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
-    
+
     # 이 API는 더 이상 클라이언트에서 직접 호출하지 않음.
     # 클라이언트가 '새 채팅' 버튼을 누르면, 클라이언트 자체적으로 UI를 리셋하고
     # conversation_id를 null로 설정하여 다음 메시지 전송 시 서버에서
     # 새 대화를 시작하도록 유도.
     return JsonResponse({"message": "Client-side reset is preferred."})
+
 
 def onboarding_api(request):
     """
@@ -991,9 +965,9 @@ def onboarding_api(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================ 
+# ============================================
 # Chat Summarization API
-# ============================================ 
+# ============================================
 
 
 def summarize_conversation(request):
