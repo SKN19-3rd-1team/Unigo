@@ -991,9 +991,7 @@ def _format_department_output(
 
 
 # ==================== 대화 기록 요약 ====================
-def _format_conversation_history(
-    history: List[Dict[str, str]]
-) -> str:
+def _format_conversation_history(history: List[Dict[str, str]]) -> str:
     """
     대화 기록을 텍스트 형태로 포맷팅합니다.
 
@@ -1018,9 +1016,7 @@ def _format_conversation_history(
     return "\n".join(lines)
 
 
-def summarize_conversation_history(
-    history: List[Dict[str, str]]
-) -> str:
+def summarize_conversation_history(history: List[Dict[str, str]]) -> str:
     """
     대화 기록을 요약하여 간결한 형태로 반환합니다.
 
@@ -1217,7 +1213,9 @@ def list_departments(query: str, top_k: int = DEFAULT_SEARCH_LIMIT) -> str:
 
 
 @tool
-def get_major_career_info(major_name: str) -> Dict[str, Any]:
+def get_major_career_info(
+    major_name: str, specific_field: str = "all"
+) -> Dict[str, Any]:
     """
     특정 전공의 상세 정보(진로, 취업률, 연봉, 관련 자격증 등)를 조회하는 툴입니다.
 
@@ -1228,122 +1226,113 @@ def get_major_career_info(major_name: str) -> Dict[str, Any]:
 
     [호출 시점]
     - **취업률, 연봉, 진로, 졸업 후 직업** 관련 질문은 대학명이 포함되어 있어도 무조건 이 툴을 사용하세요.
-    - `get_university_admission_info`는 취업률, 연봉, 직업, 남녀 성비, 관련 자격증, 진출 분야, 관심 과목의 정보를 제공하지 않습니다.
+    - 입력으로 받은 대학명은 무시하고 **학과명만** 사용하세요.
+
+    파라미터 설명:
+    - major_name: 정보를 조회할 학과명. (예: "컴퓨터공학과")
+    - specific_field:
+        사용자가 궁금해하는 특정 정보를 지정하여 필요한 데이터만 가져보세요.
+        - "jobs": 진출 직업, 관련 직업 리스트, 진출 분야
+        - "stats": 취업률, 입학 경쟁률, 남녀 성비, 만족도, 졸업 후 연봉
+        - "academics": 주요 교과목, 관련 자격증, 학과 관련 활동
+        - "all": (기본값) 위 모든 정보를 포함한 전체 요약
 
     [필수 처리]
     - 결과에 `warning_context`가 포함되어 있다면, 답변 시 **반드시 해당 경고 문구**를 포함하여 사용자에게 고지하세요.
-
-    파라미터 설명:
-    - major_name:
-        정보를 조회할 학과명.
-        예: "컴퓨터공학과", "경영학과"
     """
     query = (major_name or "").strip()
-    _log_tool_start("get_major_career_info", f"전공 진로 정보 조회 - major='{query}'")
-    print(f"✅ Using get_major_career_info tool for: '{query}'")
+    field = (specific_field or "all").lower()
+
+    _log_tool_start(
+        "get_major_career_info", f"전공 정보 조회 - major='{query}', field='{field}'"
+    )
+    print(f"✅ Using get_major_career_info tool for: '{query}' (Field: {field})")
 
     # 입력 검증
     if not query:
-        result = {
+        return {
             "error": "invalid_query",
             "message": "전공명을 입력해 주세요.",
             "suggestion": "예: '컴퓨터공학과', '소프트웨어공학과'",
         }
-        _log_tool_result("get_major_career_info", "전공명 누락 - 오류 반환")
-        return result
 
     # 전공 레코드 검색
     record = _resolve_major_for_career(query)
     if record is None:
         print(f"⚠️  WARNING: No career data found for '{query}'")
-        result = {
+        return {
             "error": "no_results",
-            "message": f"'{query}' 전공의 진출 직업 정보를 찾을 수 없습니다.",
+            "message": f"'{query}' 전공의 정보를 찾을 수 없습니다.",
             "suggestion": "학과명을 정확히 입력하거나 list_departments 툴로 전공명을 먼저 확인하세요.",
         }
-        _log_tool_result("get_major_career_info", "전공 데이터 미발견 - 오류 반환")
-        return result
 
-    # 진로 정보 추출
-    job_text = (getattr(record, "job", "") or "").strip()
-    job_list = _extract_job_list(job_text)
-    enter_field = _format_enter_field(record)
-    career_activities = _format_career_activities(record)
-    qualifications_text, qualifications_list = _parse_qualifications(record)
-    main_subjects = _format_main_subjects(record)
-
-    # 연봉 정보 계산 (월평균 * 12)
-    annual_salary = None
-    if record.salary:
-        try:
-            annual_salary = float(record.salary) * 12
-        except (ValueError, TypeError):
-            pass
-
-    # 응답 구성
+    # 응답 구성 (공통 필드)
     response: Dict[str, Any] = {
         "major": record.major_name,
-        "jobs": job_list,
-        "job_summary": job_text,
-        "enter_field": enter_field,
         "source": "backend/data/major_detail.json",
-        # 추가 통계 정보
-        "gender_ratio": record.gender,
-        "satisfaction": record.satisfaction,
-        "employment_rate": record.employment_rate,
-        "acceptance_rate": record.acceptance_rate,
-        "annual_salary": annual_salary,  # 연봉 정보 추가
         "warning_context": (
-            "⚠️ [치명적 경고] 이 정보는 특정 대학(예: 한양대, 서울대 등)의 실제 데이터가 아닙니다. "
+            "⚠️ [치명적 경고] 이 정보는 특정 대학의 실제 데이터가 아닙니다. "
             "반드시 '커리어넷'의 [국가 표준 데이터]임을 명시해야 합니다. "
             "답변 시 'OO대학교의 자료는 아니지만, 일반적인 OO학과의 정보에 따르면...'이라는 문구를 필수적으로 포함하세요."
         ),
         "data_source_disclaimer": "본 데이터는 대학별 개별 공시 자료가 아닌, 커리어넷의 표준 학과 정보입니다.",
     }
 
-    # 선택적 필드 추가
-    if career_activities:
-        response["career_act"] = career_activities
-    if qualifications_text:
-        response["qualifications"] = qualifications_text
-    if qualifications_list:
-        response["qualifications_list"] = qualifications_list
-    if main_subjects:
-        response["main_subject"] = main_subjects
+    # 1. 직업/진로 정보 (jobs)
+    if field in ["all", "jobs"]:
+        job_text = (getattr(record, "job", "") or "").strip()
+        job_list = _extract_job_list(job_text)
+        enter_field = _format_enter_field(record)
 
-    # 경고 메시지 추가 (직업 목록이 없는 경우)
-    if not job_list:
-        response["warning"] = "데이터에 등록된 직업 목록이 없습니다."
-    else:
-        print(f"✅ Retrieved {len(job_list)} jobs for '{record.major_name}'")
+        response["jobs"] = job_list
+        response["job_summary"] = job_text
+        response["enter_field"] = enter_field
 
-    # 진출 분야 정보 로깅
-    if enter_field:
+        if not job_list:
+            response["warning"] = "데이터에 등록된 직업 목록이 없습니다."
+        else:
+            print(f"   ℹ️ Included {len(job_list)} jobs")
+
+    # 2. 통계 정보 (stats)
+    if field in ["all", "stats"]:
+        # 연봉 정보 계산 (월평균 * 12)
+        annual_salary = None
+        if record.salary:
+            try:
+                annual_salary = float(record.salary) * 12
+            except (ValueError, TypeError):
+                pass
+
+        response["gender_ratio"] = record.gender
+        response["satisfaction"] = record.satisfaction
+        response["employment_rate"] = record.employment_rate
+        response["acceptance_rate"] = record.acceptance_rate
+        response["annual_salary"] = annual_salary
         print(
-            f"   ℹ️ Enter field categories: {[item.get('category') for item in enter_field]}"
+            f"   ℹ️ Included stats (employment: {record.employment_rate}, salary: {annual_salary})"
         )
 
-    # 통계 정보 로깅
-    if record.acceptance_rate:
-        print(f"   ℹ️ Acceptance rate: {record.acceptance_rate}%")
+    # 3. 학업/자격증/활동 정보 (academics)
+    if field in ["all", "academics"]:
+        career_activities = _format_career_activities(record)
+        qualifications_text, qualifications_list = _parse_qualifications(record)
+        main_subjects = _format_main_subjects(record)
 
-    # 결과 로깅
-    activity_info = (
-        f"활동 {len(career_activities)}건" if career_activities else "활동 정보 없음"
-    )
-    subject_info = (
-        f"주요 과목 {len(main_subjects)}건" if main_subjects else "주요 과목 정보 없음"
-    )
-    stats_info = []
-    if record.acceptance_rate:
-        stats_info.append(f"합격률 {record.acceptance_rate}%")
-    if record.employment_rate:
-        stats_info.append("취업률 정보 있음")
-    stats_str = ", ".join(stats_info) if stats_info else "통계 정보 없음"
+        if career_activities:
+            response["career_act"] = career_activities
+        if qualifications_text:
+            response["qualifications"] = qualifications_text
+        if qualifications_list:
+            response["qualifications_list"] = qualifications_list
+        if main_subjects:
+            response["main_subject"] = main_subjects
+
+        print(
+            f"   ℹ️ Included academic info (subjects: {len(main_subjects)}, acts: {len(career_activities)})"
+        )
 
     _log_tool_result(
-        "get_major_career_info",
-        f"{record.major_name} - 직업 {len(job_list)}건, {activity_info}, {subject_info}, {stats_str} 반환",
+        "get_major_career_info", f"{record.major_name} 정보 반환 (Field: {field})"
     )
 
     return response
