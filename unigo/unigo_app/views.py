@@ -709,11 +709,17 @@ def chat_api(request):
         # 과거 기록과 현재 세션 기록 병합
         combined_messages = past_messages + db_messages
         
+<<<<<<< Updated upstream
         # 전체 컨텍스트가 너무 길어지지 않도록 (예: 최대 30개로 제한하거나, 
         # 질문에서 요구한 "최대 이전 10개 대화"가 순수 과거 기록만인지 전체인지에 따라 조정)
         # 여기서는 "기억"을 위해 과거 기록 20개를 확보했으므로, 
         # 현재 대화가 길어지면 과거 기록이 밀려나는 슬라이딩 윈도우 방식으로 처리
         # (최근 메시지 우선)
+=======
+        # 전체 컨텍스트가 너무 길어지지 않도록 (예: 최대 30개로 제한)
+        # "기억"을 위해 과거 기록 20개를 확보했으므로, 
+        # 현재 대화가 길어지면 과거 기록이 밀려나는 슬라이딩 윈도우 방식으로 처리
+>>>>>>> Stashed changes
         if len(combined_messages) > 20:
              combined_messages = combined_messages[-20:]
 
