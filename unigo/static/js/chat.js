@@ -538,6 +538,9 @@ const handleChatInput = async (text) => {
 
                         if (data.type === 'status') {
                             aiBubble.innerHTML = `<span style="color:#888;">${data.content}</span>`;
+                        } else if (data.type === 'delta') {
+                            finalResponse += data.content;
+                            aiBubble.innerHTML = marked.parse(finalResponse);
                         } else if (data.type === 'content') {
                             finalResponse = data.content; // Store final content
                             // Format with markdown links and line breaks

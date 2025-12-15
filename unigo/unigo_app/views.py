@@ -565,46 +565,52 @@ def stream_chat_responses(conversation, message_text, chat_history_for_ai):
     full_response_content = ""
 
     try:
+        # [수정] stream_mode=["messages", "updates"] 로 토큰 스트리밍과 상태 업데이트를 모두 받음
         stream = run_mentor_stream(
-            question=message_text, chat_history=chat_history_for_ai, mode="react"
+            question=message_text,
+            chat_history=chat_history_for_ai,
+            mode="react",
+            stream_mode=["messages", "updates"],
         )
 
-        for chunk in stream:
-            step_name = list(chunk.keys())[0]
+        for mode, chunk in stream:
+            # 1. 메시지 스트리밍 (토큰 단위)
+            if mode == "messages":
+                message, metadata = chunk
+                # 에이전트 노드에서 생성된 AIMessageChunk인 경우에만 처리
+                if (
+                    metadata.get("langgraph_node") == "agent"
+                    and hasattr(message, "content")
+                    and message.content
+                ):
+                    # 토큰 전송
+                    data = {"type": "delta", "content": message.content}
+                    yield f"data: {json.dumps(data)}\n\n"
 
-            if step_name == "agent":
-                agent_messages = chunk["agent"].get("messages", [])
+            # 2. 상태 업데이트 (툴 호출 등 확인)
+            elif mode == "updates":
+                step_name = list(chunk.keys())[0]
 
-                if agent_messages:
-                    last_ai_message = agent_messages[-1]
+                if step_name == "agent":
+                    agent_messages = chunk["agent"].get("messages", [])
+                    if agent_messages:
+                        last_ai_message = agent_messages[-1]
 
-                    # 도구 사용 결정 시 상태 업데이트
-
-                    if (
-                        hasattr(last_ai_message, "tool_calls")
-                        and last_ai_message.tool_calls
-                    ):
-                        # tool_calls가 비어있지 않은지 확인
-
-                        if last_ai_message.tool_calls:
+                        # 도구 사용 결정 시 상태 업데이트
+                        if (
+                            hasattr(last_ai_message, "tool_calls")
+                            and last_ai_message.tool_calls
+                        ):
                             tool_names = [
                                 call["name"] for call in last_ai_message.tool_calls
                             ]
-
                             status_message = f"Tool: {', '.join(tool_names)}"
-
                             data = {"type": "status", "content": status_message}
-
                             yield f"data: {json.dumps(data)}\n\n"
 
-                    # 최종 답변 생성 시 내용 전송
-
-                    if last_ai_message.content:
-                        full_response_content = last_ai_message.content
-
-                        data = {"type": "content", "content": full_response_content}
-
-                        yield f"data: {json.dumps(data)}\n\n"
+                        # [중요] DB 저장을 위해 최종 답변 업데이트 (마지막 메시지 기준)
+                        if last_ai_message.content:
+                            full_response_content = last_ai_message.content
 
     except Exception as e:
         logger.error(f"AI Stream Error: {e}", exc_info=True)
