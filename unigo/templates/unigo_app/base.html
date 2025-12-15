@@ -16,6 +16,7 @@
 </head>
 
 <body>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
     <div class="page-wrapper">
         {% include "unigo_app/header.html" %}
         <main class="main-area" id="main-area">

@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
-
+from django.http import JsonResponse, StreamingHttpResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 import json
@@ -9,6 +8,7 @@ import os
 import uuid
 import logging
 from django.contrib.auth.decorators import login_required
+from langchain_core.messages import AIMessage
 
 logger = logging.getLogger("unigo_app")
 
@@ -24,18 +24,18 @@ if frontend_dir not in sys.path:
     sys.path.append(frontend_dir)
 
 try:
-    from backend.main import run_mentor, run_major_recommendation
+    from backend.main import run_mentor_stream, run_major_recommendation
     from backend.rag.tools import summarize_conversation_history
 except ImportError as e:
-    # ... (Error handling code kept brief for this tool call, assumed user already saw it) ...
     logger.error(f"Backend import failed: {e}")
-    # In production, this should probably not pass silently, but for now we proceed
-    pass
+    run_mentor_stream = None
+    run_major_recommendation = None
+    summarize_conversation_history = None
 
 
-# ============================================
+# ============================================ 
 # Page Views
-# ============================================
+# ============================================ 
 
 
 def auth(request):
@@ -117,7 +117,6 @@ def character_select(request):
         return redirect("unigo_app:auth")
     return render(request, "unigo_app/character_select.html")
 
-
 def home(request):
     """
     홈 페이지 (루트 경로)
@@ -129,9 +128,9 @@ def home(request):
     return redirect("unigo_app:auth")
 
 
-# ============================================
+# ============================================ 
 # Auth API
-# ============================================
+# ============================================ 
 
 
 def auth_signup(request):
@@ -218,7 +217,6 @@ def auth_login(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-
 def auth_logout(request):
     """로그아웃 API"""
     if request.method != "POST":
@@ -226,7 +224,6 @@ def auth_logout(request):
 
     logout(request)
     return JsonResponse({"message": "Logout successful"})
-
 
 def logout_view(request):
     """
@@ -237,7 +234,6 @@ def logout_view(request):
     # 클라이언트를 인증 페이지로 리다이렉트하게 한다.
     logout(request)
     return render(request, "unigo_app/logout.html")
-
 
 def auth_me(request):
     """현재 사용자 정보 조회 API"""
@@ -267,7 +263,6 @@ def auth_me(request):
         )
     return JsonResponse({"is_authenticated": False})
 
-
 def auth_check_email(request):
     """이메일 중복 확인 API (Public)"""
     if request.method != "POST":
@@ -289,7 +284,6 @@ def auth_check_email(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
-
 
 def auth_check_username(request):
     """아이디(닉네임) 중복 확인 API (Public)"""
@@ -314,9 +308,9 @@ def auth_check_username(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================
+# ============================================ 
 # Setting API
-# ============================================
+# ============================================ 
 
 
 @login_required
@@ -471,9 +465,9 @@ def upload_character_image(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================
+# ============================================ 
 # Setting API
-# ============================================
+# ============================================ 
 
 
 def delete_account(request):
@@ -524,66 +518,155 @@ def delete_account(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================
+# ============================================ 
 # Chat & Feature API
-# ============================================
+# ============================================ 
+
+def stream_chat_responses(
+
+    conversation, message_text, chat_history_for_ai
+
+):
+
+    """채팅 응답을 스트리밍하는 제너레이터"""
+
+    if not run_mentor_stream:
+
+        error_msg = "챗봇 백엔드가 연결되지 않았습니다. 관리자에게 문의하세요."
+
+        yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+
+        return
+
+
+
+    full_response_content = ""
+
+    try:
+
+        stream = run_mentor_stream(
+
+            question=message_text, chat_history=chat_history_for_ai, mode="react"
+
+        )
+
+        
+
+        for chunk in stream:
+
+            step_name = list(chunk.keys())[0]
+
+
+
+            if step_name == "agent":
+
+                agent_messages = chunk['agent'].get('messages', [])
+
+                if agent_messages:
+
+                    last_ai_message = agent_messages[-1]
+
+                    
+
+                    # 도구 사용 결정 시 상태 업데이트
+
+                    if hasattr(last_ai_message, 'tool_calls') and last_ai_message.tool_calls:
+
+                        # tool_calls가 비어있지 않은지 확인
+
+                        if last_ai_message.tool_calls:
+
+                            tool_names = [call['name'] for call in last_ai_message.tool_calls]
+
+                            status_message = f"Tool: {', '.join(tool_names)}"
+
+                            data = {"type": "status", "content": status_message}
+
+                            yield f"data: {json.dumps(data)}\n\n"
+
+
+
+                    # 최종 답변 생성 시 내용 전송
+
+                    if last_ai_message.content:
+
+                        full_response_content = last_ai_message.content
+
+                        data = {"type": "content", "content": full_response_content}
+
+                        yield f"data: {json.dumps(data)}\n\n"
+
+            
+
+    except Exception as e:
+
+        logger.error(f"AI Stream Error: {e}", exc_info=True)
+
+        data = {"type": "error", "content": "AI 서버에서 오류가 발생했습니다."}
+
+        yield f"data: {json.dumps(data)}\n\n"
+
+        return
+
+
+
+    # 전체 응답 DB 저장
+
+    if full_response_content:
+
+        Message.objects.create(
+
+            conversation=conversation, role="assistant", content=full_response_content
+
+        )
+
+        logger.info(
+
+            f"Streamed response saved to DB for conversation {conversation.id}"
+
+        )
 
 
 def chat_api(request):
     """
-    챗봇 대화 API (DB 저장 포함)
+    챗봇 대화 API (스트리밍)
     """
-    logger.info("Chat API called")
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
     try:
         data = json.loads(request.body)
         message_text = data.get("message")
-        history = data.get("history", [])  # 프론트엔드에서 보내준 히스토리 (참고용)
-        session_id = data.get("session_id")  # 비로그인 사용자용 세션 ID
-        conversation_id = data.get("conversation_id")  # 로그인 사용자용: 현재 대화 ID
+        session_id = data.get("session_id")
+        conversation_id = data.get("conversation_id")
 
         if not message_text:
             return JsonResponse({"error": "Empty message"}, status=400)
 
-        logger.debug(f"User message: {message_text}")
-
         # 1. 대화 세션 찾기 또는 생성
-        # 로그인 사용자: conversation_id를 받으면 해당 대화 사용, 없으면 새 대화 생성
-        # 비로그인 사용자: 세션 ID를 기반으로 대화 유지
         conversation = None
         if request.user.is_authenticated:
-            # 프론트엔드에서 conversation_id를 받으면 해당 대화 사용
             if conversation_id:
                 try:
                     conversation = Conversation.objects.get(
                         id=conversation_id, user=request.user
                     )
                 except Conversation.DoesNotExist:
-                    # conversation_id가 유효하지 않으면 새 대화 생성
                     conversation = Conversation.objects.create(
                         user=request.user,
-                        session_id=str(
-                            uuid.uuid4()
-                        ),  # 로그인 사용자도 고유한 session_id 생성
+                        session_id=str(uuid.uuid4()),
                         title=message_text[:20],
                     )
             else:
-                # conversation_id가 없으면 새 대화 생성
                 conversation = Conversation.objects.create(
                     user=request.user,
-                    session_id=str(
-                        uuid.uuid4()
-                    ),  # 로그인 사용자도 고유한 session_id 생성
+                    session_id=str(uuid.uuid4()),
                     title=message_text[:20],
                 )
         else:
-            # 비로그인 사용자: session_id 필수
             if not session_id:
-                session_id = str(uuid.uuid4())  # 없으면 생성해서 반환
-
-            conversation, created = Conversation.objects.get_or_create(
+                session_id = str(uuid.uuid4())
+            conversation, _ = Conversation.objects.get_or_create(
                 session_id=session_id, defaults={"title": message_text[:20]}
             )
 
@@ -592,49 +675,28 @@ def chat_api(request):
             conversation=conversation, role="user", content=message_text
         )
 
-        # 3. Backend AI 호출 (run_mentor)
-        # RAG 시스템의 핵심인 run_mentor 함수를 호출하여 LLM 답변을 생성합니다.
-        # 실제 AI 호출 시에는 DB의 최근 대화 기록을 가져와서 전달하여 멀티턴 대화를 지원합니다.
-
-        # DB 기반 히스토리 구성 (최근 10개)
-        # 이전 대화 내용을 AI에게 전달하여 문맥(Context)을 이해하도록 함
-        db_messages = conversation.messages.order_by("created_at")[:10]
+        # 3. DB 기반 히스토리 구성
+        db_messages = conversation.messages.order_by("created_at").all()
         chat_history_for_ai = [
             {"role": msg.role, "content": msg.content} for msg in db_messages
         ]
 
-        try:
-            response_content = run_mentor(
-                question=message_text, chat_history=chat_history_for_ai, mode="react"
-            )
-        except Exception as e:
-            # AI 호출 실패 시 로그 남기고 에러 반환
-            logger.error(f"AI Error: {e}")
-            return JsonResponse({"error": "AI Server Error"}, status=503)
-
-        ai_response_text = str(response_content)
-        if isinstance(response_content, dict):
-            ai_response_text = str(response_content)  # 혹시 dict가 오면 문자열로
-
-        # 4. AI 응답 DB 저장
-        Message.objects.create(
-            conversation=conversation, role="assistant", content=ai_response_text
+        # 4. 스트리밍 응답 생성 및 반환
+        response = StreamingHttpResponse(
+            stream_chat_responses(conversation, message_text, chat_history_for_ai),
+            content_type="text/event-stream",
         )
+        response["Cache-Control"] = "no-cache"
+        
+        # conversation_id를 헤더로 전달 (클라이언트가 첫 메시지 후 ID를 알 수 있도록)
+        response["X-Conversation-Id"] = conversation.id
+        if not request.user.is_authenticated:
+            response["X-Session-Id"] = conversation.session_id
 
-        logger.info("Response generated successfully")
-
-        return JsonResponse(
-            {
-                "response": ai_response_text,
-                "session_id": conversation.session_id
-                if not request.user.is_authenticated
-                else None,
-                "conversation_id": conversation.id,
-            }
-        )
+        return response
 
     except Exception as e:
-        logger.error(f"Error in chat_api: {e}", exc_info=True)
+        logger.error(f"Error in chat_api (stream): {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -654,9 +716,6 @@ def chat_history(request):
         if not conversation:
             return JsonResponse({"history": []})
 
-        # 메시지 조회 (최근 순으로 가져와서 다시 시간순 정렬할 수도 있지만,
-        # 여기서는 전체 대화 흐름이 중요하므로 생성일 오름차순으로 가져옴)
-        # 너무 많으면 최근 N개만 가져오도록 제한 가능 (예: 50개)
         messages = conversation.messages.order_by("created_at")
 
         history_data = [
@@ -679,8 +738,6 @@ def chat_history(request):
 def save_chat_history(request):
     """
     현재 세션의 채팅 내용을 새로운 Conversation으로 저장하는 API
-    - 로그인 사용자 전용
-    - 프론트엔드에서 전달한 히스토리를 새 Conversation으로 생성하여 저장
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -692,22 +749,18 @@ def save_chat_history(request):
         if not chat_history:
             return JsonResponse({"message": "No chat history to save"}, status=200)
 
-        # 제목: 첫 user 메시지 또는 '새 대화'
         title = "새 대화"
         for msg in chat_history:
             if msg.get("role") == "user":
                 title = msg.get("content", "새 대화")[:50]
                 break
 
-        # 항상 새로운 Conversation을 생성하여 현재 로컬 세션을 보존
         new_conversation = Conversation.objects.create(
             user=request.user,
             session_id=str(uuid.uuid4()),
             title=title,
         )
 
-        # 메시지 저장
-        created_count = 0
         for msg in chat_history:
             Message.objects.create(
                 conversation=new_conversation,
@@ -715,10 +768,9 @@ def save_chat_history(request):
                 content=msg.get("content", ""),
                 metadata=msg.get("metadata"),
             )
-            created_count += 1
-
+        
         logger.info(
-            f"Chat history saved: {created_count} messages in conversation {new_conversation.id} (user={request.user.username})"
+            f"Chat history saved for user={request.user.username}"
         )
 
         return JsonResponse(
@@ -767,7 +819,6 @@ def list_conversations(request):
 def load_conversation(request):
     """
     특정 conversation의 메시지들을 반환
-    쿼리 파라미터: conversation_id
     """
     try:
         conv_id = request.GET.get("conversation_id")
@@ -805,29 +856,12 @@ def reset_chat_history(request):
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
-
-    try:
-        # 최근 대화 세션 가져와서 삭제 (혹은 메시지만 삭제)
-        conversation = (
-            Conversation.objects.filter(user=request.user)
-            .order_by("-updated_at")
-            .first()
-        )
-
-        if conversation:
-            conversation.delete()
-
-        # 전공 추천 결과도 리셋할지 여부: 사용자는 "새 채팅"을 불렀으므로
-        # 처음부터(온보딩) 다시 시작하는 것이 자연스러움.
-        # MajorRecommendation은 남겨둘 수도 있지만, 온보딩 상태를 리셋하려면
-        # 클라이언트 단에서 처리가 더 중요함.
-
-        return JsonResponse({"message": "Chat history reset successful"})
-
-    except Exception as e:
-        logger.error(f"Error in reset_chat_history: {e}", exc_info=True)
-        return JsonResponse({"error": str(e)}, status=500)
-
+    
+    # 이 API는 더 이상 클라이언트에서 직접 호출하지 않음.
+    # 클라이언트가 '새 채팅' 버튼을 누르면, 클라이언트 자체적으로 UI를 리셋하고
+    # conversation_id를 null로 설정하여 다음 메시지 전송 시 서버에서
+    # 새 대화를 시작하도록 유도.
+    return JsonResponse({"message": "Client-side reset is preferred."})
 
 def onboarding_api(request):
     """
@@ -844,13 +878,11 @@ def onboarding_api(request):
         if not answers:
             return JsonResponse({"error": "Empty answers"}, status=400)
 
-        # 1. Backend 추천 알고리즘 실행
-        # 온보딩 답변들을 기반으로 전공 추천 그래프(build_major_graph)를 실행하여
-        # 맞춤형 전공을 추천받습니다.
+        if not run_major_recommendation:
+            return JsonResponse({"error": "Backend not available"}, status=503)
+
         result = run_major_recommendation(onboarding_answers=answers)
 
-        # 2. 결과 DB 저장
-        # 추천 결과를 DB에 저장하여 추후 분석이나 마이페이지 등에서 활용할 수 있게 합니다.
         if not session_id:
             session_id = str(uuid.uuid4())
 
@@ -863,7 +895,6 @@ def onboarding_api(request):
             recommended_majors=result.get("recommended_majors", []),
         )
 
-        # 결과에 session_id 포함 (클라이언트가 비로그인 시 유지하도록)
         result["session_id"] = session_id
 
         return JsonResponse(result)
@@ -873,15 +904,14 @@ def onboarding_api(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# ============================================
+# ============================================ 
 # Chat Summarization API
-# ============================================
+# ============================================ 
 
 
 def summarize_conversation(request):
     """
     대화 요약 API
-    - LangChain과 LLM을 사용하여 대화 내용을 요약합니다.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -892,6 +922,9 @@ def summarize_conversation(request):
 
         if not chat_history:
             return JsonResponse({"error": "Empty chat history"}, status=400)
+
+        if not summarize_conversation_history:
+            return JsonResponse({"error": "Backend not available"}, status=503)
 
         summary = summarize_conversation_history(chat_history)
         return JsonResponse({"summary": summary})
