@@ -1,0 +1,210 @@
+/* 
+ * Extracted from unigo/static/css/styles.css 
+ * Setting Page Specific Styles 
+ */
+
+/* ----------------------
+   Setting Page Layout
+---------------------- */
+.setting-container {
+    display: flex;
+    width: 100%;
+    max-width: 1920px;
+    margin: 40px auto;
+    gap: 60px;
+    padding: 0 20px;
+}
+
+/* Sidebar */
+.sidebar {
+    width: auto;
+    /* Allow flex to control width */
+    flex: 1;
+    /* 1 ratio */
+    background: #fff;
+    /* border-right: 1px solid #eee; */
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    height: fit-content;
+}
+
+.sidebar-user-box {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.sidebar-avatar {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 15px;
+    background-color: transparent;
+}
+
+.sidebar-username {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.sidebar-email {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.sidebar-menu-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.sidebar-btn.active {
+    background-color: #f0f0f0;
+    color: #333;
+    font-weight: bold;
+    color: #43334C;
+    /* Active color matched with theme */
+}
+
+.sidebar-btn:hover:not(.active) {
+    background-color: #fafafa;
+}
+
+/* Panel */
+.setting-panel {
+    flex-grow: 1;
+    background: #fff;
+    border-radius: 12px;
+    padding: 60px 80px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.setting-title {
+    font-size: 2.4rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.setting-desc {
+    color: #666;
+    margin-bottom: 40px;
+    font-size: 1.1rem;
+}
+
+/* Tabs */
+.setting-tabs {
+    display: flex;
+    gap: 20px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 30px;
+}
+
+.tab-btn {
+    padding: 15px 5px;
+    cursor: pointer;
+    color: #888;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    color: #43334C;
+    border-bottom-color: #43334C;
+    font-weight: bold;
+}
+
+/* Forms */
+.tab-content {
+    display: none;
+    max-width: 1000px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.input-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.form-input {
+    flex-grow: 1;
+    width: 100%;
+    /* Ensure full width in non-flex containers */
+    box-sizing: border-box;
+    /* Include padding in width calculation */
+    padding: 15px;
+    margin: 5px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1.2rem;
+}
+
+/* .input-row removed as requested */
+
+.form-input:focus {
+    outline: none;
+    border-color: #43334C;
+}
+
+.btn-secondary {
+    width: 20%;
+    padding: 15px;
+    background: #43334C;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.setting-btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: #43334C;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.setting-btn-primary:hover {
+    background: #2E2235;
+}
+
+.error-msg {
+    color: #ff3b30;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: none;
+}
+
+.success-msg {
+    color: #34c759;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: none;
+}

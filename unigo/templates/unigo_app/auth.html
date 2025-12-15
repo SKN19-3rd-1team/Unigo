@@ -17,13 +17,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Force Rabbit Image on Login Page
-    window.onload = function () {
-        const heroImg = document.querySelector('.hero-img');
-        if (heroImg) {
-            heroImg.src = "{% static 'images/rabbit.png' %}?v=" + new Date().getTime();
-        }
-    };
-</script>
 {% endblock %}
