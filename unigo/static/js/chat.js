@@ -29,6 +29,16 @@ document.addEventListener("DOMContentLoaded", () => {
     init();
 });
 
+// Configure marked.js globally
+const markedOptions = {
+    renderer: new marked.Renderer(),
+    gfm: true, // Enable GitHub Flavored Markdown
+    breaks: true // Enable GFM line breaks
+};
+markedOptions.renderer.link = function(href, title, text) {
+    return `<a target="_blank" rel="noopener noreferrer" href="${href}" title="${title}">${text}</a>`;
+};
+
 // APIs
 const API_CHAT_URL = '/api/chat';
 const API_ONBOARDING_URL = '/api/onboarding';
@@ -297,7 +307,15 @@ const createBubble = (text, type) => {
     bubble.classList.add('bubble');
 
     // Use marked.js for parsing markdown
-    bubble.innerHTML = marked.parse(text);
+    const markedOptions = {
+        renderer: new marked.Renderer(),
+        gfm: true, // Enable GitHub Flavored Markdown
+        breaks: true // Enable GFM line breaks
+    };
+    markedOptions.renderer.link = function(href, title, text) {
+        return `<a target="_blank" rel="noopener noreferrer" href="${href}" title="${title}">${text}</a>`;
+    };
+    bubble.innerHTML = marked.parse(text, markedOptions);
     container.appendChild(bubble);
 
     return container;
@@ -349,7 +367,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
         if (targetCount > charIndex) {
             charIndex = targetCount;
             const currentText = text.substring(0, charIndex);
-            bubble.innerHTML = marked.parse(currentText);
+            bubble.innerHTML = marked.parse(currentText, markedOptions);
             chatCanvas.scrollTop = chatCanvas.scrollHeight;
         }
 
@@ -540,11 +558,11 @@ const handleChatInput = async (text) => {
                             aiBubble.innerHTML = `<span style="color:#888;">${data.content}</span>`;
                         } else if (data.type === 'delta') {
                             finalResponse += data.content;
-                            aiBubble.innerHTML = marked.parse(finalResponse);
+                            aiBubble.innerHTML = marked.parse(finalResponse, markedOptions);
                         } else if (data.type === 'content') {
                             finalResponse = data.content; // Store final content
                             // Format with markdown links and line breaks
-                            aiBubble.innerHTML = marked.parse(finalResponse);
+                            aiBubble.innerHTML = marked.parse(finalResponse, markedOptions);
                         } else if (data.type === 'error') {
                             finalResponse = data.content;
                             aiBubble.innerHTML = `<span style="color:red;">${data.content}</span>`;
