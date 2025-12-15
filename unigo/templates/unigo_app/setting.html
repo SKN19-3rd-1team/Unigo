@@ -3,6 +3,7 @@
 {% block title %}Settings - Unigo{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/setting.css' %}?v={% now 'U' %}">
 {% endblock %}
 
 {% block content %}
@@ -59,8 +60,11 @@
                 <form id="form-nickname" onsubmit="return false;">
                     <div class="form-group">
                         <label class="input-label">새 닉네임</label>
-                        <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
-                        <button type="button" class="btn-secondary" id="btn-check-duplicate" style="margin-top: 5px;">중복 확인</button>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
+                            <button type="button" class="btn-secondary" id="btn-check-duplicate"
+                                style="white-space: nowrap;">중복 확인</button>
+                        </div>
                         <div class="error-msg" id="nickname-error"></div>
                         <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>
                     </div>
@@ -152,11 +156,4 @@
 {% block extra_js %}
 <script src="{% static 'js/setting.js' %}"></script>
 
-<script>
-<script>
-    // Inline script for tab switching or minor UI logic if strictly necessary only for this template.
-    // Ideally, all logic is now in setting.js to avoid duplication.
-    // If setting.js handles everything, this script block can be empty or removed.
-</script>
-</script>
 {% endblock %}
