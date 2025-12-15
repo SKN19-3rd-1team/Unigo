@@ -25,7 +25,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 소스 코드 복사
 COPY . /app/
 
-# Gunicorn 실행 (프로덕션용 WSGI 서버)
-# unigo.wsgi:application : 프로젝트의 WSGI 엔트리포인트 (project_name.wsgi)
-# --bind 0.0.0.0:8000 : 모든 인터페이스의 8000 포트 수신
+# 작업 디렉토리 변경 (Django 프로젝트 루트)
+WORKDIR /app/unigo
+
+# Entrypoint 스크립트 복사 및 실행 권한 설정 (빌드 컨텍스트 루트에서 복사)
+COPY ../entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Entrypoint 설정
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Gunicorn 실행 (entrypoint의 "$@"로 전달됨)
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "unigo.wsgi:application"]
