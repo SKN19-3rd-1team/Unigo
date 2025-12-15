@@ -279,7 +279,6 @@ const getAvatarUrl = (type) => {
         ? window.USER_CHARACTER
         : localStorage.getItem('user_character');
     let filename = savedChar || 'rabbit';
-    if (filename === 'hedgehog') filename = 'hedgehog_ver1';
     return `/static/images/${filename}.png`;
 };
 
@@ -856,7 +855,6 @@ function updateCharacterImage(characterId, customImageUrl = null) {
     }
 
     let filename = characterId || 'rabbit';
-    if (characterId === 'hedgehog') filename = 'hedgehog_ver1';
 
     imgEl.src = `/static/images/${filename}.png`;
     imgEl.alt = `${Object.keys({
