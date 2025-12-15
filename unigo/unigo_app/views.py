@@ -691,9 +691,34 @@ def chat_api(request):
         )
 
         # 3. DB 기반 히스토리 구성
-        db_messages = conversation.messages.order_by("created_at").all()
+        db_messages = list(conversation.messages.order_by("created_at").all())
+        
+        # [Context Injection]
+        # 사용자의 이전 대화 기록(다른 세션 포함)을 최대 10턴(20개 메시지)까지 가져와서 컨텍스트에 포함
+        # 이를 통해 "새로운 세션"에서도 이전 정보를 기억하는 효과를 냄
+        past_messages = []
+        if request.user.is_authenticated:
+            # 현재 대화를 제외한 사용자의 모든 메시지 중 최근 20개 조회
+            recent_global_msgs = Message.objects.filter(
+                conversation__user=request.user
+            ).exclude(conversation=conversation).order_by('-created_at')[:20]
+            
+            # 최신순 -> 시간순 정렬
+            past_messages = list(recent_global_msgs)[::-1]
+            
+        # 과거 기록과 현재 세션 기록 병합
+        combined_messages = past_messages + db_messages
+        
+        # 전체 컨텍스트가 너무 길어지지 않도록 (예: 최대 30개로 제한하거나, 
+        # 질문에서 요구한 "최대 이전 10개 대화"가 순수 과거 기록만인지 전체인지에 따라 조정)
+        # 여기서는 "기억"을 위해 과거 기록 20개를 확보했으므로, 
+        # 현재 대화가 길어지면 과거 기록이 밀려나는 슬라이딩 윈도우 방식으로 처리
+        # (최근 메시지 우선)
+        if len(combined_messages) > 20:
+             combined_messages = combined_messages[-20:]
+
         chat_history_for_ai = [
-            {"role": msg.role, "content": msg.content} for msg in db_messages
+            {"role": msg.role, "content": msg.content} for msg in combined_messages
         ]
 
         # 4. 스트리밍 응답 생성 및 반환

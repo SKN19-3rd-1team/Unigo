@@ -377,49 +377,21 @@ def agent_node(state: MentorState) -> dict:
 
     has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
 
-    # 툴 결과가 없는 상태에서 LLM이 tool_calls 없이 답변하려고 하면 차단
-    if not has_tool_results:
-        if not hasattr(response, "tool_calls") or not response.tool_calls:
-            print(
-                "⚠️ WARNING: LLM attempted to answer without using tools. Forcing tool usage."
-            )
-            # 강제로 재시도 메시지 추가
-            error_message = HumanMessage(
-                content=(
-                    "❌ 오류: 당신은 툴을 사용하지 않고 답변하려고 했습니다.\n"
-                    "**반드시 먼저 적절한 툴을 호출해야 합니다.**\n\n"
-                    "다시 한 번 강조합니다:\n"
-                    "1. list_departments: 학과 목록 검색\n"
-                    "2. get_universities_by_department: 특정 학과를 개설한 대학 검색\n"
-                    "3. get_major_career_info: 전공별 직업/진출 분야 확인\n"
-                    "4. get_university_admission_info: 대학별 입시 정보(정시컷, 수시컷) 조회\n"
-                    "5. get_search_help: 검색 도움말\n\n"
-                    "학생의 원래 질문을 다시 읽고, 적절한 툴을 **지금 즉시** 호출하세요."
-                )
-            )
-            messages.append(error_message)
+    # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
+    # ToolMessage가 없다는 것은 아직 툴 결과를 받지 않았다는 의미
 
-            # 재시도
-            response = llm_with_tools.invoke(messages)
+    has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
 
-            # 재시도에도 툴을 사용하지 않으면 get_search_help로 폴백
-            if not hasattr(response, "tool_calls") or not response.tool_calls:
-                print(
-                    "⚠️ CRITICAL: LLM still refuses to use tools. Falling back to get_search_help."
-                )
-                from langchain_core.messages import AIMessage
-
-                # 강제로 get_search_help 툴 호출 생성
-                response = AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "get_search_help",
-                            "args": {},
-                            "id": "forced_search_help",
-                        }
-                    ],
-                )
+    # [수정] 강제 툴 사용 로직 제거 (2025-12-15)
+    # 사용자의 단순 대화(인사, 기억 확인 등)에 대해서는 툴 없이 바로 답변할 수 있도록 허용합니다.
+    # 기존에는 무조건 툴을 쓰도록 강제하여 "내 이름이 뭐야?" 같은 질문에도 오류가 났습니다.
+    
+    # 만약 LLM이 툴을 쓰지 않고 답변했다면, 그것을 그대로 인정합니다.
+    # 단, 시스템 프롬프트에서 "근거 기반 답변"을 강조했으므로, 
+    # LLM이 판단하기에 정보가 필요하면 알아서 툴을 호출할 것입니다.
+    
+    if not has_tool_results and (not hasattr(response, "tool_calls") or not response.tool_calls):
+        print("ℹ️ LLM decided to answer directly without tools.")
 
     # 4. LLM의 응답(response)을 messages에 추가하여 상태 업데이트
     #    → should_continue가 tool_calls 유무를 확인하여 다음 노드 결정
