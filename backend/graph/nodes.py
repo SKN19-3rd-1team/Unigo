@@ -348,31 +348,6 @@ def agent_node(state: MentorState) -> dict:
 
     messages = [system_message] + messages
 
-    # 🔍 입력 전처리: 단일 학과명 질문 감지 및 개선
-    # [2025-12-15] 사용자 요청에 따라 자동 쿼리 확장 로직 비활성화
-    # 원래 의도(예: "컴퓨터공학과 남녀 성비")가 "학과 전체 소개"로 변질되는 것을 방지함.
-    # from backend.graph.helper import is_single_major_query, enhance_single_major_query
-
-    # # 마지막 사용자 메시지 확인
-    # last_user_msg = None
-    # for msg in reversed(messages):
-    #     if isinstance(msg, HumanMessage):
-    #         last_user_msg = msg
-    #         break
-
-    # # 단일 학과명 질문이면 자동으로 명확한 질문으로 변환
-    # if last_user_msg and is_single_major_query(last_user_msg.content):
-    #     original_query = last_user_msg.content
-    #     enhanced_query = enhance_single_major_query(original_query)
-    #     print(f"🔍 Detected single major query: '{original_query}'")
-    #     print(f"✨ Enhanced to: '{enhanced_query}'")
-
-    #     # 마지막 사용자 메시지를 개선된 버전으로 교체
-    #     for i in range(len(messages) - 1, -1, -1):
-    #         if isinstance(messages[i], HumanMessage) and messages[i] == last_user_msg:
-    #             messages[i] = HumanMessage(content=enhanced_query)
-    #             break
-
     response = llm_with_tools.invoke(messages)
 
     # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
