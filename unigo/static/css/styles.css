@@ -336,7 +336,7 @@ html {
 .setting-container {
     display: flex;
     width: 100%;
-    max-width: 1920px;
+    max-width: 1820px;
     margin: 40px auto;
     gap: 60px;
     padding: 0 20px;
@@ -344,8 +344,10 @@ html {
 
 /* Sidebar */
 .sidebar {
-    width: auto; /* Allow flex to control width */
-    flex: 1; /* 1 ratio */
+    width: auto;
+    /* Allow flex to control width */
+    flex: 1;
+    /* 1 ratio */
     background: #fff;
     /* border-right: 1px solid #eee; */
     padding: 20px;
@@ -471,8 +473,10 @@ html {
 
 .form-input {
     flex-grow: 1;
-    width: 100%; /* Ensure full width in non-flex containers */
-    box-sizing: border-box; /* Include padding in width calculation */
+    width: 100%;
+    /* Ensure full width in non-flex containers */
+    box-sizing: border-box;
+    /* Include padding in width calculation */
     padding: 15px;
     margin: 5px;
     border: 1px solid #ddd;
@@ -691,7 +695,7 @@ html {
 ----------------------*/
 /* 대화 목록 템플릿 (우측 패널) */
 .hidden {
-  display: none;
+    display: none;
 }
 
 .conv-list {
@@ -891,8 +895,13 @@ html {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .dots {
@@ -918,12 +927,16 @@ html {
 }
 
 @keyframes blink {
-    0%, 20% {
+
+    0%,
+    20% {
         opacity: 0;
     }
+
     40% {
         opacity: 1;
     }
+
     100% {
         opacity: 0;
     }
