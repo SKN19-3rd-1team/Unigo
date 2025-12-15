@@ -20,14 +20,16 @@ def get_graph(mode: str = "react"):
     """
     LangGraph 인스턴스를 가져옵니다 (싱글톤 패턴, 캐싱됨).
 
-    그래프 빌드는 비용이 높은 작업이므로, 한 번 빌드한 그래프를 전역 변수에 저장하여 재사용합니다.
+    그래프 빌드는 비용이 높은 작업(컴파일, 도구 로딩 등)이므로,
+    한 번 빌드한 그래프를 전역 변수(`_graph_react`, `_graph_major`)에 저장하여 재사용합니다.
 
     Args:
-        mode: 그래프 실행 모드
-            - "react": ReAct 에이전트 방식 (기본값)
+        mode (str): 그래프 실행 모드
+            - "react": 일반 대화 및 RAG 검색을 수행하는 ReAct 에이전트 (기본값)
+            - "major": 온보딩 정보 기반 전공 추천을 수행하는 그래프
 
     Returns:
-        Compiled LangGraph application
+        CompiledGraph: 컴파일된 LangGraph 애플리케이션 (invoke 가능)
 
     Raises:
         ValueError: 지원하지 않는 mode가 입력된 경우
@@ -54,21 +56,24 @@ def run_mentor(
 ) -> str | dict:
     """
     멘토 시스템을 실행하여 학생의 질문에 답변합니다.
+    API 서버에서 호출되는 메인 진입점입니다.
 
-    ** 사용 예시 **
-    ```python
-    # ReAct 모드 (기본)
-    answer = run_mentor("인공지능 관련 과목 추천해줘")
-    ```
+    ** 동작 흐름 **
+    1. 요청된 `mode`에 맞는 LangGraph 인스턴스를 로드합니다 (캐싱 활용).
+    2. `chat_history`가 있다면 LangChain `HumanMessage` 형태로 변환하여 문맥을 구성합니다.
+    3. 사용자 `question`을 추가하여 그래프를 실행(`invoke`)합니다.
+    4. 최종 상태에서 LLM의 답변(`Last Message`)을 추출하여 반환합니다.
 
     Args:
-        question: 학생의 질문 (예: "인공지능 관련 과목 추천해줘")
-        interests: 학생의 관심사/진로 방향 (선택, 현재 미사용)
-        mode: 실행 모드
-            - "react": ReAct 에이전트 방식 (기본값, LLM이 tool 호출 자율 결정)
+        question (str): 학생의 질문 (예: "컴퓨터공학과 전망 어때?")
+        interests (str | None): (Legacy) 학생의 관심사/진로 방향 (현재 로직에서는 chat_history로 대체됨)
+        mode (str): 실행 모드 ("react" or "major")
+        chat_history (list[dict] | None): 이전 대화 기록 ([{"role": "user", "content": "..."}, ...])
 
     Returns:
-        LLM이 생성한 최종 답변 문자열
+        str | dict:
+            - 일반적인 경우: LLM이 생성한 최종 답변 문자열
+            - `awaiting_user_input` 상태인 경우: 그래프 상태 딕셔너리 (Human-in-the-loop 등)
     """
     # 1. 캐싱된 그래프 인스턴스 가져오기
     graph = get_graph(mode=mode)
@@ -113,17 +118,24 @@ def run_major_recommendation(
     """
     온보딩 단계에서 수집한 정보를 기반으로 Pinecone 전공 추천을 실행합니다.
 
+    'major' 모드의 그래프를 사용하여 사용자 프로필을 분석하고,
+    벡터 DB 검색 및 LLM 평가를 거쳐 최적의 전공을 추천합니다.
+
     Args:
-        onboarding_answers: 선호 과목, 취미, 장래 희망, 성격/장점, 희망 학과 등 사용자 입력
-        question: 선택 사항, 추가 맥락으로 사용할 마지막 사용자 발화
+        onboarding_answers (dict): 사용자 입력 딕셔너리
+            - subjects (str): 선호 과목
+            - interests (str): 관심사/취미
+            - career_goal (str): 장래 희망
+            - strengths (str): 강점
+            - career_field (str, optional): 희망 진출 분야
+        question (str | None): 추가 맥락 (선택 사항)
 
     Returns:
-        {
-            "user_profile_text": "...",
-            "recommended_majors": [...],
-            "major_scores": {...},
-            "major_search_hits": [...],
-        }
+        dict: 추천 결과 데이터
+            - user_profile_text (str): LLM이 요약한 사용자 페르소나
+            - recommended_majors (list[dict]): 추천 전공 목록 (이름, 점수, 설명 등)
+            - major_scores (dict): 주요 전공별 적합도 점수
+            - major_search_hits (list): 벡터 검색 원본 결과 (디버깅용)
     """
     graph = get_graph(mode="major")
     state = {

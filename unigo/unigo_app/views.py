@@ -134,7 +134,21 @@ def home(request):
 
 
 def auth_signup(request):
-    """회원가입 API"""
+    """
+    회원가입 API
+
+    Args:
+        request (HttpRequest): JSON 바디
+            - username (str): 아이디
+            - password (str): 비밀번호
+            - email (str): 이메일 (선택)
+
+    Returns:
+        JsonResponse:
+            - message (str): 성공 메시지
+            - user (dict): 생성된 사용자 정보
+            - error (str): 에러 메시지 (중복 등)
+    """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -169,7 +183,18 @@ def auth_signup(request):
 def auth_login(request):
     """
     로그인 API
-    - username 또는 email로 로그인 가능
+    username 또는 email을 사용하여 로그인을 시도합니다.
+
+    Args:
+        request (HttpRequest): JSON 바디
+            - username (str): 아이디 또는 이메일
+            - password (str): 비밀번호
+
+    Returns:
+        JsonResponse:
+            - message (str): 성공 메시지
+            - user (dict): 사용자 정보
+            - error (str): 에러 메시지
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -488,9 +513,7 @@ def delete_account(request):
             return JsonResponse({"error": "Username and password required"}, status=400)
 
         # 사용자 존재 여부 확인
-        try:
-            target_user = User.objects.get(username=username)
-        except User.DoesNotExist:
+        if not User.objects.filter(username=username).exists():
             return JsonResponse({"error": "Username doesn't exist"}, status=400)
 
         # 현재 비밀번호 검증
@@ -629,7 +652,24 @@ def stream_chat_responses(
 
 def chat_api(request):
     """
-    챗봇 대화 API (스트리밍)
+    챗봇 대화 API (DB 저장 및 RAG 답변 생성)
+
+    사용자의 메시지를 받아 DB에 저장하고, Backend RAG 엔진(`run_mentor`)을 호출하여
+    답변을 생성한 뒤, 이를 다시 DB에 저장하고 프론트엔드에 반환합니다.
+
+    Args:
+        request (HttpRequest): JSON 바디를 포함한 POST 요청
+            - message (str): 사용자 질문
+            - history (list): (Optional) 프론트엔드에서 관리하는 대화 내역
+            - session_id (str): 비로그인 사용자 식별용
+            - conversation_id (int): 로그인 사용자 대화방 ID
+
+    Returns:
+        JsonResponse:
+            - response (str): AI 답변
+            - session_id (str): 세션 ID (비로그인 시)
+            - conversation_id (int): 대화방 ID
+            - error (str): 에러 메시지 (실패 시)
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -637,8 +677,8 @@ def chat_api(request):
     try:
         data = json.loads(request.body)
         message_text = data.get("message")
-        session_id = data.get("session_id")
-        conversation_id = data.get("conversation_id")
+        session_id = data.get("session_id")  # 비로그인 사용자용 세션 ID
+        conversation_id = data.get("conversation_id")  # 로그인 사용자용: 현재 대화 ID
 
         if not message_text:
             return JsonResponse({"error": "Empty message"}, status=400)
@@ -816,6 +856,39 @@ def list_conversations(request):
 
 
 @login_required
+def delete_conversation(request, conversation_id):
+    """
+    대화 삭제 API
+    로그인 사용자의 특정 대화 세션을 삭제합니다. 삭제 시 관련 메시지도 함께 삭제됩니다(CASCADE).
+
+    Args:
+        request (HttpRequest): 요청 객체
+        conversation_id (int): 삭제할 대화 ID
+
+    Returns:
+        JsonResponse: 성공/실패 메시지
+    """
+    if request.method != "DELETE" and request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+        conversation.delete()
+        logger.info(
+            f"Conversation {conversation_id} deleted by user {request.user.username}"
+        )
+        return JsonResponse({"message": "Conversation deleted successfully"})
+
+    except Conversation.DoesNotExist:
+        return JsonResponse(
+            {"error": "Conversation not found or permission denied"}, status=404
+        )
+    except Exception as e:
+        logger.error(f"Error deleting conversation: {e}", exc_info=True)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
 def load_conversation(request):
     """
     특정 conversation의 메시지들을 반환
@@ -865,7 +938,21 @@ def reset_chat_history(request):
 
 def onboarding_api(request):
     """
-    온보딩 질문 답변 API (DB 저장 포함)
+    온보딩 질문 답변 API (전공 추천 실행)
+
+    사용자가 입력한 온보딩 정보(선호 과목, 흥미 등)를 바탕으로
+    `run_major_recommendation`을 실행하여 맞춤형 전공을 추천하고 결과를 저장합니다.
+
+    Args:
+        request (HttpRequest): JSON 바디
+            - answers (dict): 온보딩 답변 딕셔너리
+            - session_id (str): 세션 ID
+
+    Returns:
+        JsonResponse:
+            - recommended_majors (list): 추천 전공 목록
+            - user_profile_text (str): 사용자 페르소나 분석 결과
+            - session_id (str): 세션 ID
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)

@@ -87,8 +87,11 @@
         <!-- 개별 아이템 템플릿 추가 -->
         <template id="conv-item-template">
             <li data-id="">
-                <strong class="conv-title"></strong><br>
-                <small class="conv-meta"></small><br>
+                <div class="conv-list-header">
+                    <strong class="conv-title"></strong>
+                    <button type="button" class="conv-delete-btn" title="삭제">🗑️</button>
+                </div>
+                <small class="conv-meta"></small>
                 <span class="conv-preview"></span>
             </li>
         </template>
@@ -123,17 +126,9 @@
 
 {% block extra_js %}
 {% if character_code %}
-<script>
-    // Server-side injection to ensure immediate sync
-    window.USER_CHARACTER = '{{ character_code|default:"rabbit" }}';
-    window.USER_CUSTOM_IMAGE_URL = '{{ custom_image_url|default:"" }}';
-    localStorage.setItem('user_character', window.USER_CHARACTER);
-    if (window.USER_CUSTOM_IMAGE_URL) {
-        localStorage.setItem('user_custom_image', window.USER_CUSTOM_IMAGE_URL);
-    } else {
-        localStorage.removeItem('user_custom_image');
-    }
-</script>
+<div id="chat-config" data-user-character="{{ character_code|default:'rabbit' }}"
+    data-user-custom-image="{{ custom_image_url|default:'' }}" style="display:none;">
+</div>
 {% endif %}
 <script src="{% static 'js/chat.js' %}"></script>
 {% endblock %}

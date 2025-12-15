@@ -7,6 +7,29 @@ const STORAGE_KEY_ONBOARDING = 'unigo.app.onboarding';
 const STORAGE_KEY_CONVERSATION_ID = 'unigo.app.currentConversationId';
 const STORAGE_KEY_RESULT_PANEL = 'unigo.app.resultPanel';
 
+
+// -- Initialization Handling for Server Data --
+document.addEventListener("DOMContentLoaded", () => {
+    const config = document.getElementById('chat-config');
+    if (config) {
+        // Read data attributes
+        window.USER_CHARACTER = config.dataset.userCharacter || 'rabbit';
+        window.USER_CUSTOM_IMAGE_URL = config.dataset.userCustomImage || '';
+
+        // Sync to localStorage
+        localStorage.setItem('user_character', window.USER_CHARACTER);
+        if (window.USER_CUSTOM_IMAGE_URL) {
+            localStorage.setItem('user_custom_image', window.USER_CUSTOM_IMAGE_URL);
+        } else {
+            localStorage.removeItem('user_custom_image');
+        }
+    }
+
+    // Start Init
+    init();
+});
+
+// APIs
 const API_CHAT_URL = '/api/chat';
 const API_ONBOARDING_URL = '/api/onboarding';
 
@@ -98,7 +121,7 @@ const init = async () => {
             try {
                 const authResponse = await fetch('/api/auth/me');
                 const authData = await authResponse.json();
-                
+
                 if (authData.is_authenticated) {
                     // Check 'has_history' from backend
                     if (authData.has_history) {
@@ -317,11 +340,12 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
     const startTime = Date.now();
     let charIndex = 0;
     bubble.innerHTML = '';
-    
+
     while (charIndex < text.length) {
         const elapsed = Date.now() - startTime;
         let targetCount = Math.max(1, Math.floor(elapsed / speed));
-        
+
+        // If tab was backgrounded, elapsed might be huge, so we catch up instantly.
         if (targetCount > text.length) targetCount = text.length;
 
         if (targetCount > charIndex) {
@@ -615,6 +639,7 @@ const resetChat = async () => {
 
     // 4. Show Greeting
     await appendBubbleWithTyping("새로운 대화를 시작합니다! 무엇을 도와드릴까요?", 'ai', false, 20);
+
     if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
 };
 
@@ -649,18 +674,62 @@ const showConversationList = async () => {
         convs.forEach(c => {
             const itemTpl = document.getElementById('conv-item-template');
             const li = itemTpl.content.cloneNode(true).querySelector('li');
+
             li.setAttribute('data-id', c.id);
             li.querySelector('.conv-title').textContent = c.title || '(제목 없음)';
             li.querySelector('.conv-meta').textContent = `${c.updated_at.split('T')[0]} · ${c.message_count} messages`;
             li.querySelector('.conv-preview').textContent = c.last_message_preview || '';
+
             ul.appendChild(li);
         });
 
         resultCard.innerHTML = '';
         resultCard.appendChild(clone);
 
-        resultCard.querySelectorAll('li[data-id]').forEach(it => {
-            it.addEventListener('click', () => loadConversation(it.getAttribute('data-id')));
+        // 각 내역 항목 클릭 리스너
+        const items = resultCard.querySelectorAll('li[data-id]');
+        items.forEach(it => {
+            // 항목 자체 클릭 시 대화 불러오기
+            it.addEventListener('click', async (e) => {
+                const convId = it.getAttribute('data-id');
+                await loadConversation(convId);
+            });
+
+            // [NEW] 삭제 버튼 클릭 리스너
+            const deleteBtn = it.querySelector('.conv-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // 부모 항목 클릭 이벤트 전파 방지
+                    const convId = it.getAttribute('data-id');
+                    const convTitle = it.querySelector('.conv-title').textContent;
+
+                    if (confirm(`'${convTitle}' 대화를 정말로 삭제하시겠습니까?\n삭제된 대화는 복구할 수 없습니다.`)) {
+                        try {
+                            const response = await fetch(`/api/chat/delete/${convId}`, {
+                                method: 'DELETE',
+                                headers: getPostHeaders() // CSRF 토큰 포함
+                            });
+
+                            if (response.ok) {
+                                // UI에서 제거
+                                it.remove();
+                                alert('대화가 삭제되었습니다.');
+
+                                // 만약 현재 열려있는 대화라면 초기화 (선택 사항)
+                                if (String(currentConversationId) === String(convId)) {
+                                    resetChat();
+                                }
+                            } else {
+                                const err = await response.json();
+                                alert(`삭제 실패: ${err.error || '알 수 없는 오류'}`);
+                            }
+                        } catch (err) {
+                            console.error('삭제 요청 중 오류 발생:', err);
+                            alert('오류가 발생했습니다.');
+                        }
+                    }
+                });
+            }
         });
         resultCard.querySelector('.conv-back-btn')?.addEventListener('click', (e) => { e.preventDefault(); restoreResultPanel(); });
     } catch (e) { console.error('Error loading conversation list:', e); }
@@ -696,7 +765,7 @@ const loadConversation = async (convId) => {
         currentConversationId = conv.id;
         onboardingState.isComplete = true;
         saveState();
-        renderHistory();
+
     } catch (e) {
         console.error('Error loading conversation:', e);
         alert('세션 불러오기에 실패했습니다.');
@@ -727,7 +796,10 @@ const summarizeConversation = async () => {
         if (resultCard) {
             const resultTpl = document.getElementById('summary-result-template');
             const resultContent = resultTpl.content.cloneNode(true);
-            resultContent.querySelector('.result-content').innerHTML = data.summary.replace(/\n/g, '<br>');
+
+            const contentDiv = resultContent.querySelector('.result-content');
+            contentDiv.innerHTML = data.summary.replace(/\n/g, '<br>');
+
             resultCard.innerHTML = '';
             resultCard.appendChild(resultContent);
             sessionStorage.setItem(STORAGE_KEY_RESULT_PANEL, resultCard.innerHTML);
@@ -753,9 +825,7 @@ if (chatInput) {
     });
 }
 
-// -- Init --
-init();
-
+// Start
 function updateCharacterImage(characterId, customImageUrl = null) {
     console.log("updateCharacterImage called with:", characterId, customImageUrl);
     const imgEl = document.querySelector('.result-rabbit');
