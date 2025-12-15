@@ -101,7 +101,7 @@
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 16px;
-    max-width: 70%;
+    max-width: 75%;
 }
 
 .bubble-container.user {
