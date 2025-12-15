@@ -8,7 +8,6 @@ import os
 import uuid
 import logging
 from django.contrib.auth.decorators import login_required
-from langchain_core.messages import AIMessage
 
 logger = logging.getLogger("unigo_app")
 
@@ -941,6 +940,10 @@ def onboarding_api(request):
         data = json.loads(request.body)
         answers = data.get("answers")
         session_id = data.get("session_id")
+        conversation_id = data.get(
+            "conversation_id"
+        )  # [MODIFIED] Receive existing conversation ID
+        history = data.get("history", [])
 
         if not answers:
             return JsonResponse({"error": "Empty answers"}, status=400)
@@ -950,10 +953,81 @@ def onboarding_api(request):
 
         result = run_major_recommendation(onboarding_answers=answers)
 
+        # 1. Conversation 생성 또는 검색
+        user = request.user if request.user.is_authenticated else None
         if not session_id:
             session_id = str(uuid.uuid4())
 
-        user = request.user if request.user.is_authenticated else None
+        title = "전공 추천 상담"
+        if history and len(history) > 0:
+            first_answer = next(
+                (h["content"] for h in history if h["role"] == "user"), "전공 추천 상담"
+            )
+            title = first_answer[:30]
+
+        conversation = None
+        created = True  # reuse flag
+
+        # [MODIFIED] Try to reuse existing conversation
+        if user and conversation_id:
+            try:
+                conversation = Conversation.objects.get(id=conversation_id, user=user)
+                created = False
+            except Conversation.DoesNotExist:
+                pass
+
+        if not conversation:
+            # Create new
+            if user:
+                conversation = Conversation.objects.create(
+                    user=user, session_id=session_id, title=title
+                )
+            else:
+                # Session based
+                conversation, created = Conversation.objects.get_or_create(
+                    session_id=session_id, defaults={"title": title}
+                )
+
+        # 2. Onboarding History 저장 (Message 모델)
+        if conversation and history:
+            # If reusing conversation, we must be careful not to duplicate existing messages.
+            # Simple heuristic: If we reused (not created), assume previous messages are safe types.
+            # But 'history' passed from frontend includes EVERYTHING.
+            # We should only append the *tail* that is not in DB.
+            # Since Onboarding follows a linear flow without API saves (except the start 'Hello'?),
+            # We can count existing messages in DB.
+
+            existing_count = conversation.messages.count()
+
+            # If newly created, existing_count is 0. All history is new.
+            # If reused, existing_count might be e.g. 2 ("Hello", "AI response").
+            # Frontend history might be 6 ("Hello", "AI", "Start", "Q1", "A1"...).
+            # So we take history[2:] ?
+
+            # Safety check: Verify timestamps or content? Hard without IDs.
+            # Let's trust the count for linear append.
+
+            msgs_to_save = history[existing_count:]
+
+            for msg in msgs_to_save:
+                Message.objects.create(
+                    conversation=conversation,
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", ""),
+                )
+
+            # 3. 추천 결과(Summary)도 Assistant Message로 저장
+            recs = result.get("recommended_majors", [])
+            summary_text = "온보딩 답변을 바탕으로 추천 전공 TOP 5를 정리했어요:\n"
+            for idx, major in enumerate(recs[:5]):
+                summary_text += f"{idx + 1}. {major.get('major_name')} (점수 {major.get('score', 0):.2f})\n"
+            summary_text += (
+                "\n필요하면 위 전공 중 궁금한 학과를 지정해서 더 물어봐도 좋아요!"
+            )
+
+            Message.objects.create(
+                conversation=conversation, role="assistant", content=summary_text
+            )
 
         MajorRecommendation.objects.create(
             user=user,
@@ -963,6 +1037,8 @@ def onboarding_api(request):
         )
 
         result["session_id"] = session_id
+        if conversation:
+            result["conversation_id"] = conversation.id
 
         return JsonResponse(result)
 

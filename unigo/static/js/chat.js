@@ -125,7 +125,8 @@ const init = async () => {
                 if (authData.is_authenticated) {
                     // Check 'has_history' from backend
                     if (authData.has_history) {
-                        await appendBubbleWithTyping("다시 만나서 반갑습니다! 무엇을 도와드릴까요?", 'ai', false, 20);
+                        // [MODIFIED] New greeting for returning users
+                        await appendBubbleWithTyping("다시 만나서 반갑습니다! 이전의 대화 내용은 좌측의 폴더 아이콘을 눌러 가져올 수 있습니다! 아니면 지금 저와 새로운 대화를 시작하실까요?", 'ai', false, 20);
                     } else {
                         // New User Greeting
                         await appendBubbleWithTyping("안녕하세요! 처음 뵙겠습니다. 무엇을 도와드릴까요?", 'ai', false, 20);
@@ -416,11 +417,22 @@ const finishOnboarding = async () => {
         const response = await fetch(API_ONBOARDING_URL, {
             method: 'POST',
             headers: getPostHeaders(),
-            body: JSON.stringify({ answers: onboardingState.answers })
+            body: JSON.stringify({ 
+                answers: onboardingState.answers, 
+                history: chatHistory,
+                conversation_id: currentConversationId // [MODIFIED] Send current ID to prevent duplication
+            })
         });
         if (!response.ok) throw new Error("Onboarding API failed");
         const result = await response.json();
         if (loadingBubble) loadingBubble.parentElement.remove();
+
+        // [MODIFIED] Update conversation ID from result to enable list updates
+        if (result.conversation_id) {
+            currentConversationId = result.conversation_id;
+            console.log("Onboarding saved. Conversation ID:", currentConversationId);
+            saveState();
+        }
 
         const recs = result.recommended_majors || [];
         let summaryText = "온보딩 답변을 바탕으로 추천 전공 TOP 5를 정리했어요:\n";
@@ -430,7 +442,10 @@ const finishOnboarding = async () => {
         });
         summaryText += "\n필요하면 위 전공 중 궁금한 학과를 지정해서 더 물어봐도 좋아요!";
 
+        // [MODIFIED] Manually push the summary to local history so it syncs with what backend just saved
+        // Backend saved it as assistant message, so we reflect it here.
         await appendBubbleWithTyping(summaryText, 'ai', true, 15);
+        
         updateResultPanel(result);
     } catch (e) {
         console.error(e);
@@ -574,11 +589,17 @@ const handleChatInput = async (text) => {
     }
 };
 
+// [Modified] Prevent double submission
+let isProcessing = false;
+
 const handleSubmit = async () => {
-    if (!chatInput) return;
+    if (!chatInput || isProcessing) return;
     const text = chatInput.value.trim();
     if (!text) return;
 
+    // Lock
+    isProcessing = true;
+    chatInput.disabled = true; // Optional: disable input
     chatInput.value = '';
 
     const cleanedText = text.replace(/\s+/g, '');
@@ -587,17 +608,28 @@ const handleSubmit = async () => {
         onboardingState = { isComplete: false, step: 0, answers: {} };
         saveState();
         await startOnboardingStep();
+        
+        // Unlock
+        isProcessing = false;
+        chatInput.disabled = false;
         chatInput.focus();
         return;
     }
 
-    if (!onboardingState.isComplete) {
-        await handleOnboardingInput(text);
-    } else {
-        await handleChatInput(text);
+    try {
+        if (!onboardingState.isComplete) {
+            await handleOnboardingInput(text);
+        } else {
+            await handleChatInput(text);
+        }
+    } catch (e) {
+        console.error("Error in handleSubmit:", e);
+    } finally {
+        // Unlock
+        isProcessing = false;
+        chatInput.disabled = false;
+        chatInput.focus();
     }
-
-    chatInput.focus();
 };
 
 // -- Reset Chat Logic --
@@ -606,7 +638,9 @@ const resetChat = async () => {
     if (!confirm("대화 내용을 모두 지우고 처음부터 다시 시작하시겠습니까?")) return;
 
     // 1. Save chat history for logged-in users
-    if (chatHistory.length > 0) {
+    // [MODIFIED] Only save if we don't have a conversation ID (i.e., unsaved local history).
+    // If currentConversationId exists, it means messages are already auto-saved to backend.
+    if (chatHistory.length > 0 && !currentConversationId) {
         try {
             const authRes = await fetch('/api/auth/me');
             const authData = await authRes.json();
@@ -735,20 +769,9 @@ const showConversationList = async () => {
 const loadConversation = async (convId) => {
     if (!convId) return;
 
-    if (chatHistory.length > 0) {
-        const saveConfirm = confirm('현재 대화가 있습니다. 서버에 저장한 후 불러오시겠습니까?');
-        if (saveConfirm) {
-            try {
-                await fetch('/api/chat/save', {
-                    method: 'POST',
-                    headers: getPostHeaders(),
-                    body: JSON.stringify({ history: chatHistory })
-                });
-            } catch (e) { console.error('Error saving before load:', e); }
-        } else if (!confirm('저장하지 않고 불러오시겠습니까?')) {
-            return;
-        }
-    }
+    // [MODIFIED] Removed save confirmation prompt. 
+    // Backend automatically saves messages during chat, so we can safely switch contexts.
+    // if (chatHistory.length > 0) { ... }
 
     try {
         const resp = await fetch(`/api/chat/load?conversation_id=${encodeURIComponent(convId)}`);
