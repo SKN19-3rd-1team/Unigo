@@ -766,10 +766,47 @@ const showConversationList = async () => {
         // 각 내역 항목 클릭 리스너
         const items = resultCard.querySelectorAll('li[data-id]');
         items.forEach(it => {
+            // 항목 자체 클릭 시 대화 불러오기
             it.addEventListener('click', async (e) => {
                 const convId = it.getAttribute('data-id');
                 await loadConversation(convId);
             });
+
+            // [NEW] 삭제 버튼 클릭 리스너
+            const deleteBtn = it.querySelector('.conv-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // 부모 항목 클릭 이벤트 전파 방지
+                    const convId = it.getAttribute('data-id');
+                    const convTitle = it.querySelector('.conv-title').textContent;
+
+                    if (confirm(`'${convTitle}' 대화를 정말로 삭제하시겠습니까?\n삭제된 대화는 복구할 수 없습니다.`)) {
+                        try {
+                            const response = await fetch(`/api/chat/delete/${convId}`, {
+                                method: 'DELETE',
+                                headers: getPostHeaders() // CSRF 토큰 포함
+                            });
+
+                            if (response.ok) {
+                                // UI에서 제거
+                                it.remove();
+                                alert('대화가 삭제되었습니다.');
+
+                                // 만약 현재 열려있는 대화라면 초기화 (선택 사항)
+                                if (String(currentConversationId) === String(convId)) {
+                                    resetChat();
+                                }
+                            } else {
+                                const err = await response.json();
+                                alert(`삭제 실패: ${err.error || '알 수 없는 오류'}`);
+                            }
+                        } catch (err) {
+                            console.error('삭제 요청 중 오류 발생:', err);
+                            alert('오류가 발생했습니다.');
+                        }
+                    }
+                });
+            }
         });
 
         // 닫기 버튼 클릭 시 이전 결과 패널 복원
