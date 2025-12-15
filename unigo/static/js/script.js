@@ -184,4 +184,85 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-const deleteAccountBtn = document.getElementById("btn-delete-account");
+// [REMOVED] deleteAccountBtn from global scope. Logic is in setting.js
+
+// ==========================================
+// [MOVED] Duplicate Checks (Email/Username) from base.html
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const showWarning = (inputElement, message) => {
+        // Use native browser validation bubble
+        inputElement.setCustomValidity(message);
+        inputElement.reportValidity();
+    };
+
+    const showSuccess = (inputElement, message) => {
+        inputElement.setCustomValidity(""); // Clear error
+        alert(message);
+    };
+
+    // Clear custom validity on input so user can try again
+    const clearValidity = (e) => {
+        e.target.setCustomValidity("");
+    };
+
+    // Email Check
+    const btnEmailConfirm = document.getElementById('btn-email-confirm');
+    const emailInput = document.getElementById('signup-email');
+    if (btnEmailConfirm && emailInput) {
+        emailInput.addEventListener('input', clearValidity);
+
+        btnEmailConfirm.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                showWarning(emailInput, "이메일을 입력해주세요.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/check-email', {
+                    method: 'POST',
+                    headers: getPostHeaders(),
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.exists) {
+                    showWarning(emailInput, data.message);
+                } else {
+                    showSuccess(emailInput, data.message);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+
+    // Username Check
+    const btnUserConfirm = document.getElementById('btn-username-confirm');
+    const userInput = document.getElementById('signup-username');
+    if (btnUserConfirm && userInput) {
+        userInput.addEventListener('input', clearValidity);
+
+        btnUserConfirm.addEventListener('click', async () => {
+            const username = userInput.value.trim();
+            if (!username) {
+                showWarning(userInput, "닉네임을 입력해주세요.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/check-username', {
+                    method: 'POST',
+                    headers: getPostHeaders(),
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (data.exists) {
+                    showWarning(userInput, data.message);
+                } else {
+                    showSuccess(userInput, data.message);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+});

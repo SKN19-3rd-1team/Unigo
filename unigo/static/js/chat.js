@@ -7,6 +7,29 @@ const STORAGE_KEY_ONBOARDING = 'unigo.app.onboarding';
 const STORAGE_KEY_CONVERSATION_ID = 'unigo.app.currentConversationId';
 const STORAGE_KEY_RESULT_PANEL = 'unigo.app.resultPanel';
 
+
+// -- Initialization Handling for Server Data --
+document.addEventListener("DOMContentLoaded", () => {
+    const config = document.getElementById('chat-config');
+    if (config) {
+        // Read data attributes
+        window.USER_CHARACTER = config.dataset.userCharacter || 'rabbit';
+        window.USER_CUSTOM_IMAGE_URL = config.dataset.userCustomImage || '';
+
+        // Sync to localStorage
+        localStorage.setItem('user_character', window.USER_CHARACTER);
+        if (window.USER_CUSTOM_IMAGE_URL) {
+            localStorage.setItem('user_custom_image', window.USER_CUSTOM_IMAGE_URL);
+        } else {
+            localStorage.removeItem('user_custom_image');
+        }
+    }
+
+    // Start Init
+    init();
+});
+
+// APIs
 const API_CHAT_URL = '/api/chat';
 const API_ONBOARDING_URL = '/api/onboarding';
 
@@ -88,7 +111,7 @@ const init = async () => {
             try {
                 const authResponse = await fetch('/api/auth/me');
                 const authData = await authResponse.json();
-                
+
                 if (authData.is_authenticated) {
                     // Check 'has_history' from backend
                     if (authData.has_history) {
@@ -323,7 +346,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
 
     // Initial render (empty)
     bubble.innerHTML = '';
-    
+
     while (charIndex < text.length) {
         // Calculate how many characters should be shown by now
         const elapsed = Date.now() - startTime;
@@ -333,7 +356,7 @@ const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 
         // let targetCount = Math.floor(elapsed / speed) + 1; 
         // Better:
         let targetCount = Math.max(1, Math.floor(elapsed / speed));
-        
+
         // If tab was backgrounded, elapsed might be huge, so we catch up instantly.
         if (targetCount > text.length) targetCount = text.length;
 
@@ -681,7 +704,7 @@ const resetChat = async () => {
 
     // 5. Show Greeting (instead of starting onboarding)
     await appendBubbleWithTyping("새로운 대화를 시작합니다! 무엇을 도와드릴까요?", 'ai', false, 20);
-    
+
     if (chatInput) chatInput.placeholder = "궁금한 점을 물어보세요!";
 };
 
@@ -728,12 +751,12 @@ const showConversationList = async () => {
         convs.forEach(c => {
             const itemTpl = document.getElementById('conv-item-template');
             const li = itemTpl.content.cloneNode(true).querySelector('li');
-            
+
             li.setAttribute('data-id', c.id);
             li.querySelector('.conv-title').textContent = c.title || '(제목 없음)';
             li.querySelector('.conv-meta').textContent = `${c.updated_at.split('T')[0]} · ${c.message_count} messages`;
             li.querySelector('.conv-preview').textContent = c.last_message_preview || '';
-            
+
             ul.appendChild(li);
         });
 
@@ -798,7 +821,7 @@ const loadConversation = async (convId) => {
         // 온보딩 상태 업데이트: 완료로 표시하여 온보딩 프롬프트 방지
         onboardingState.isComplete = true;
         saveState();
-        
+
     } catch (e) {
         console.error('Error loading conversation:', e);
         alert('세션 불러오기에 실패했습니다. 콘솔을 확인하세요.');
@@ -840,10 +863,10 @@ const summarizeConversation = async () => {
         if (resultCard) {
             const resultTpl = document.getElementById('summary-result-template');
             const resultContent = resultTpl.content.cloneNode(true);
-            
+
             const contentDiv = resultContent.querySelector('.result-content');
             contentDiv.innerHTML = data.summary.replace(/\n/g, '<br>');
-            
+
             resultCard.innerHTML = '';
             resultCard.appendChild(resultContent);
             sessionStorage.setItem(STORAGE_KEY_RESULT_PANEL, resultCard.innerHTML);
@@ -888,7 +911,6 @@ if (chatInput) {
 }
 
 // Start
-init();
 function updateCharacterImage(characterId, customImageUrl = null) {
     console.log("updateCharacterImage called with:", characterId, customImageUrl);
     const imgEl = document.querySelector('.result-rabbit');
