@@ -116,6 +116,7 @@ def run_mentor_stream(
     question: str,
     chat_history: list[dict] | None = None,
     mode: str = "react",
+    stream_mode: str | list[str] = "updates",
 ):
     """
     멘토 시스템을 실행하고 결과를 스트리밍합니다 (제너레이터).
@@ -125,6 +126,7 @@ def run_mentor_stream(
         question (str): 사용자 질문
         chat_history (list): 대화 기록
         mode (str): 실행 모드
+        stream_mode (str | list[str]): LangGraph 스트리밍 모드
 
     Yields:
         dict: LangGraph 스트리밍 청크
@@ -146,7 +148,7 @@ def run_mentor_stream(
     }
 
     # stream_mode="updates"를 사용하여 각 노드의 업데이트 사항을 스트리밍
-    return graph.stream(state, stream_mode="updates")
+    return graph.stream(state, stream_mode=stream_mode)
 
 
 def run_major_recommendation(
