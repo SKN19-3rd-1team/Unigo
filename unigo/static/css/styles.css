@@ -613,36 +613,14 @@ html {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-/* 로드된 대화 정보 */
-.conv-loaded {
-    padding: 16px;
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+li small.conv-meta {
+    display: block;
 }
 
-.conv-loaded .conv-list-header {
-    align-items: flex-start;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 12px;
+li span.conv-preview {
+    display: block;
+    margin-top: 4px;
 }
-
-.conv-loaded #loaded-conv-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    color: #2c2c2c;
-    letter-spacing: -0.2px;
-}
-
-.conv-loaded #loaded-conv-info {
-    margin-top: 8px;
-    color: #888;
-    font-size: 13px;
-    line-height: 1.4;
-}
-
 
 /* ----------------------
     Conversation Summary Styles
