@@ -5,7 +5,7 @@ html {
     padding: 0;
     width: 100%;
     height: 100%;
-    background: #FFF9F5;
+    background: linear-gradient(135deg, #FFF9F5 0%, #FFF3EB 100%);
     font-family: 'Inter', sans-serif;
 }
 
@@ -23,35 +23,52 @@ html {
     width: 100%;
     display: flex;
     justify-content: center;
-    padding-top: 50px;
+    padding-top: 40px;
 }
 
 .nav-inner {
     width: 1820px;
-    height: 100px;
-    background: #43334C;
-    border-radius: 30px;
+    height: 90px;
+    background: linear-gradient(135deg, #43334C 0%, #5A4360 100%);
+    border-radius: 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 50px;
+    box-shadow: 0 10px 40px rgba(67, 51, 76, 0.15);
+}
+
+.nav-inner:hover {
+    box-shadow: 0 15px 50px rgba(67, 51, 76, 0.2);
+    transform: translateY(-2px);
 }
 
 .nav-brand {
-    font-size: 36px;
+    font-size: 32px;
     color: white;
     font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 .nav-menu {
     display: flex;
-    gap: 50px;
+    gap: 20px;
 }
 
 .nav-link {
-    color: white;
-    font-size: 36px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 25px;
     text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 8px;
+}
+
+.nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
 }
 
 /* ----------------------
@@ -60,18 +77,24 @@ html {
 .main-area {
     display: flex;
     justify-content: center;
-    margin-top: 60px;
+    margin-top: 50px;
 }
 
 .card-container {
     width: 1820px;
-    height: 820px;
-    background: #F8F4EC;
-    border-radius: 30px;
-    border: 1px solid #FFF7F3;
+    min-height: 820px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+}
+
+.card-container:hover {
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.12);
 }
 
 /* 카드 내부 */
@@ -82,26 +105,41 @@ html {
 }
 
 .title {
-    font-size: 48px;
-    color: #583A36;
+    font-size: 56px;
+    background: linear-gradient(135deg, #583A36 0%, #43334C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     font-family: 'Inria Serif', serif;
     font-weight: 700;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    letter-spacing: -1px;
 }
 
 .subtitle {
     font-size: 24px;
-    color: #583A36;
-    font-family: 'Inria Serif', serif;
-    margin-bottom: 40px;
+    color: #766B6B;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 50px;
+    font-weight: 400;
 }
 
 /* 이미지 */
 .hero-img {
-    width: 300px;
-    height: 300px;
+    width: 320px;
+    height: 320px;
     object-fit: contain;
-    margin-bottom: 50px;
+    margin-bottom: 60px;
+    filter: drop-shadow(0 10px 30px rgba(67, 51, 76, 0.15));
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
 }
 
 /* ----------------------
@@ -110,32 +148,57 @@ html {
 .button-row {
     display: flex;
     justify-content: center;
-    gap: 30px;
+    gap: 24px;
 }
 
 .btn-primary {
-    width: 250px;
-    height: 80px;
-    background: #43334C;
-    border-radius: 20px;
+    width: 260px;
+    height: 70px;
+    background: linear-gradient(135deg, #43334C 0%, #5A4360 100%);
+    border-radius: 16px;
     border: none;
     color: white;
-    font-size: 32px;
-    font-family: 'Roboto', sans-serif;
+    font-size: 25px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 8px 24px rgba(67, 51, 76, 0.25);
+    letter-spacing: 0.5px;
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(67, 51, 76, 0.35);
+}
+
+.btn-primary:active {
+    transform: translateY(-1px);
 }
 
 .btn-outline {
-    width: 250px;
-    height: 80px;
-    background: transparent;
-    border-radius: 20px;
+    width: 260px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 16px;
     color: #43334C;
     border: 2px solid #43334C;
-    font-size: 32px;
-    font-family: 'Roboto', sans-serif;
-    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    font-size: 25px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(67, 51, 76, 0.1);
     cursor: pointer;
+    letter-spacing: 0.5px;
+}
+
+.btn-outline:hover {
+    background: #43334C;
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(67, 51, 76, 0.25);
+}
+
+.btn-outline:active {
+    transform: translateY(-1px);
 }
 
 /* ------------------------
@@ -146,9 +209,20 @@ html {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
     justify-content: center;
     align-items: center;
     z-index: 999;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .modal.show {
@@ -157,16 +231,28 @@ html {
 
 .modal-content {
     background: white;
-    padding: 24px;
-    border-radius: 12px;
+    padding: 28px;
+    border-radius: 20px;
     width: 90%;
-    max-width: 360px;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* ----------------------
     로그인/회원가입 팝업 영역
 ---------------------- */
-/* 기본 레이아웃 초기화 */
 * {
     margin: 0;
     padding: 0;
@@ -186,309 +272,203 @@ html {
 
 .popup-modal.show {
     display: flex;
+    animation: fadeIn 0.3s ease;
 }
 
 .popup-modal-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
 }
 
 /* 모달 컨테이너 */
 .popup-modal-content {
     position: relative;
     width: 90%;
-    height: 90%;
+    height: auto;
     max-width: 500px;
-    max-height: 600px;
-    background: #fff;
-    border-radius: 14px;
-    padding: 30px;
+    max-height: 90%;
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
     z-index: 10;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s ease;
 }
 
 /* 닫기 버튼 */
 .popup-modal-close {
     position: absolute;
-    right: 16px;
-    top: 14px;
+    right: 20px;
+    top: 20px;
     border: none;
-    background: none;
-    font-size: 28px;
+    background: rgba(0, 0, 0, 0.05);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 24px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-modal-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+    transform: rotate(90deg);
 }
 
 /* 제목 */
 .popup-modal-title {
     text-align: center;
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
-    margin-top: 24px;
-    margin-bottom: 24px;
+    margin-top: 10px;
+    margin-bottom: 30px;
+    background: linear-gradient(135deg, #583A36 0%, #43334C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /* 폼 */
 .popup-modal-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 18px;
 }
 
 .popup-field {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .popup-label {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
+    color: #2d3748;
 }
 
 .popup-input {
-    height: 42px;
-    padding: 10px 14px;
-    border: 1.4px solid #ddd;
-    border-radius: 10px;
+    height: 48px;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
     font-size: 16px;
     box-sizing: border-box;
+}
+
+.popup-input:focus {
+    outline: none;
+    border-color: #43334C;
+    box-shadow: 0 0 0 3px rgba(67, 51, 76, 0.1);
 }
 
 /* 이메일 텍스트필드 & 버튼 가로 배치 */
 .popup-email-row {
     display: flex;
     align-items: flex-end;
-    gap: 10px;
+    gap: 12px;
 }
 
 /* 버튼 */
 .popup-btn-primary {
     margin-top: 10px;
     width: 100%;
-    padding: 12px 14px;
-    background: #43334C;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #43334C 0%, #5A4360 100%);
     color: white;
     border: none;
-    border-radius: 30px;
-    font-size: 18px;
+    border-radius: 12px;
+    font-size: 17px;
     cursor: pointer;
     font-weight: 600;
+    box-shadow: 0 4px 16px rgba(67, 51, 76, 0.25);
+}
+
+.popup-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(67, 51, 76, 0.35);
 }
 
 /* 버튼2 */
 .popup-btn-primary2 {
     width: 100%;
-    padding: 12px 14px;
-    background: #999999;
+    padding: 14px 16px;
+    background: #94a3b8;
     color: white;
     border: none;
-    border-radius: 30px;
-    font-size: 18px;
+    border-radius: 12px;
+    font-size: 17px;
     cursor: pointer;
     font-weight: 600;
+}
+
+.popup-btn-primary2:hover {
+    background: #64748b;
 }
 
 /* 인증 버튼 */
 .popup-auth-btn-primary {
-    height: 42px;
-    width: 20%;
-    padding: 0px 14px;
-    background: #43334C;
+    height: 48px;
+    padding: 0px 20px;
+    background: linear-gradient(135deg, #43334C 0%, #5A4360 100%);
     color: white;
     border: none;
-    border-radius: 10px;
-    font-size: 18px;
+    border-radius: 12px;
+    font-size: 15px;
     cursor: pointer;
     font-weight: 600;
     margin-top: 0;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(67, 51, 76, 0.2);
+}
+
+.popup-auth-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(67, 51, 76, 0.3);
 }
 
 /* 하단 */
 .login-modal-footer {
-    margin-top: 18px;
+    margin-top: 24px;
     text-align: center;
 }
 
 .login-forgot-link {
-    font-size: 16px;
-    color: #FF0A0A;
+    font-size: 15px;
+    color: #ef4444;
     text-decoration: none;
+}
+
+.login-forgot-link:hover {
+    color: #dc2626;
+    text-decoration: underline;
 }
 
 .login-signup-row {
-    margin-top: 10px;
-    font-size: 16px;
+    margin-top: 12px;
+    font-size: 15px;
+    color: #64748b;
 }
 
 .login-signup-row a {
-    color: #FF0A0A;
+    color: #ef4444;
     text-decoration: none;
+    font-weight: 600;
+}
+
+.login-signup-row a:hover {
+    color: #dc2626;
+    text-decoration: underline;
 }
 
 /* ----------------------
-    Character Carousel Styles
-    (Ported from docs/design/profile/styles.css)
----------------------- */
-.carousel-scene {
-    width: 100%;
-    height: 400px;
-    position: relative;
-    perspective: 1200px;
-    margin-bottom: 20px;
-    margin-top: 50px;
-    /* Added spacing */
-}
-
-.carousel-3d {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.carousel-item {
-    position: absolute;
-    width: 200px;
-    height: 300px;
-    left: 50%;
-    top: 50%;
-    margin-left: -100px;
-    margin-top: -150px;
-    /* Adjusted centering */
-    background: white;
-    border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #eee;
-}
-
-.carousel-item.active {
-    transform: translateZ(0) scale(1.15);
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
-    z-index: 10;
-}
-
-.carousel-item:not(.active) {
-    filter: brightness(0.7);
-    opacity: 0.6;
-}
-
-.carousel-item:hover:not(.active) {
-    filter: brightness(0.85);
-    opacity: 0.8;
-}
-
-.character-image {
-    width: 140px;
-    height: 140px;
-    object-fit: contain;
-    margin-bottom: 15px;
-    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
-    transition: transform 0.3s ease;
-}
-
-.carousel-item.active .character-image {
-    animation: charFloat 3s ease-in-out infinite;
-}
-
-@keyframes charFloat {
-
-    0%,
-    100% {
-        transform: translateY(0px);
-    }
-
-    50% {
-        transform: translateY(-12px);
-    }
-}
-
-.controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 30px;
-    margin-bottom: 20px;
-    margin-top: 30px;
-}
-
-.control-btn {
-    background: rgba(73, 73, 73, 0.1);
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #333;
-    transition: all 0.3s ease;
-}
-
-.control-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
-    transform: scale(1.1);
-}
-
-.character-info-box {
-    background: #FAFAFA;
-    border: 1px solid #eee;
-    padding: 15px 35px;
-    border-radius: 18px;
-    min-width: 320px;
-    text-align: center;
-}
-
-.character-info-name {
-    color: #43334C;
-    font-size: 1.8rem;
-    margin-bottom: 6px;
-    font-weight: 700;
-}
-
-.character-info-desc {
-    color: #666;
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-.select-button {
-    background: #43334C;
-    color: #fff;
-    border: none;
-    padding: 14px 40px;
-    font-size: 1rem;
-    font-weight: 700;
-    border-radius: 50px;
-    cursor: pointer;
-    box-shadow: 0 10px 30px rgba(67, 51, 76, 0.3);
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: block;
-    margin: 0 auto;
-}
-
-.select-button:hover {
-    transform: translateY(-3px);
-    background: #2E2235;
-}
-
-/* ----------------------
-    Conversation List Styles
-    (Ported from docs/design/chat/styles.css)
+    과거 대화 목록 스타일
 ----------------------*/
-/* 대화 목록 템플릿 (우측 패널) */
 .hidden {
     display: none;
 }
@@ -496,7 +476,7 @@ html {
 .conv-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     height: 100%;
 }
 
@@ -504,47 +484,47 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 0 4px 12px;
-    border-bottom: 1px solid #e0e0e0;
+    gap: 16px;
+    padding: 0 8px 16px;
+    border-bottom: 2px solid #e2e8f0;
 }
 
 .conv-list-title {
     margin: 0;
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
-    color: #2c2c2c;
-    letter-spacing: -0.3px;
+    color: #1e293b;
+    letter-spacing: -0.5px;
 }
 
 .conv-back-btn {
-    padding: 8px 16px;
+    padding: 10px 20px;
     background: white;
-    border: 1px solid #d0d0d0;
-    border-radius: 8px;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    color: #555;
+    color: #475569;
     white-space: nowrap;
-    transition: all 0.2s ease;
 }
 
 .conv-back-btn:hover {
-    background: #f8f8f8;
-    border-color: #b0b0b0;
-    color: #333;
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
+    transform: translateY(-1px);
 }
 
 .conv-list-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 4px;
+    padding: 8px;
     background: transparent;
 }
 
 .conv-list-scroll::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 .conv-list-scroll::-webkit-scrollbar-track {
@@ -552,12 +532,12 @@ html {
 }
 
 .conv-list-scroll::-webkit-scrollbar-thumb {
-    background: #d0d0d0;
-    border-radius: 3px;
+    background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+    border-radius: 4px;
 }
 
 .conv-list-scroll::-webkit-scrollbar-thumb:hover {
-    background: #b0b0b0;
+    background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
 }
 
 .conv-list-ul {
@@ -566,21 +546,21 @@ html {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 
 .conv-list-ul li {
-    padding: 18px 20px;
-    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-    border: 1px solid #e5e8eb;
-    border-radius: 12px;
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 16px;
     cursor: pointer;
-    transition: all 0.25s ease;
     font-size: 15px;
     font-weight: 500;
-    color: #2d3748;
-    line-height: 1.6;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    color: #334155;
+    line-height: 1.3;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     position: relative;
     overflow: hidden;
 }
@@ -592,15 +572,14 @@ html {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(180deg, #43334C 0%, #5A4360 100%);
     opacity: 0;
-    transition: opacity 0.25s ease;
 }
 
 .conv-list-ul li:hover {
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%);
-    border-color: #c5cad1;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.12);
+    background: white;
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 24px rgba(67, 51, 76, 0.1);
     transform: translateY(-2px);
 }
 
@@ -610,36 +589,38 @@ html {
 
 .conv-list-ul li:active {
     transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 li small.conv-meta {
     display: block;
+    color: #94a3b8;
+    font-size: 13px;
 }
 
 li span.conv-preview {
     display: block;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 /* ----------------------
-    Conversation Summary Styles
-    (Ported from docs/design/chat/styles.css)
+    대화 요약 스타일
 ----------------------*/
-/* 요약 결과 스타일 */
 .result-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #f0f0f0;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #e2e8f0;
 }
 
 .result-title {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
-    color: #2d3748;
+    background: linear-gradient(135deg, #1e293b 0%, #43334C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /* 로딩 스타일 */
@@ -648,85 +629,47 @@ li span.conv-preview {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 70px 20px;
 }
 
 .spinner-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: 24px;
 }
 
 .spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid #f0f0f0;
-    border-top: 4px solid #667eea;
+    width: 56px;
+    height: 56px;
+    border: 4px solid #e2e8f0;
+    border-top: 4px solid #43334C;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes spin {
     0% {
         transform: rotate(0deg);
     }
-
     100% {
         transform: rotate(360deg);
-    }
-}
-
-.dots {
-    display: inline-block;
-    margin-left: 4px;
-}
-
-.dots span {
-    animation: blink 1.4s infinite;
-    opacity: 0;
-}
-
-.dots span:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.dots span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.dots span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes blink {
-
-    0%,
-    20% {
-        opacity: 0;
-    }
-
-    40% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
     }
 }
 
 /* 결과 컨텐츠 스타일 */
 .result-content {
     line-height: 1.8;
-    color: #2d3748;
+    color: #334155;
     font-size: 16px;
-    padding: 20px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border-radius: 12px;
-    border-left: 4px solid #667eea;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border-left: 4px solid #43334C;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .result-content p {
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
