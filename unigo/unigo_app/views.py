@@ -8,7 +8,6 @@ import os
 import uuid
 import logging
 from django.contrib.auth.decorators import login_required
-from langchain_core.messages import AIMessage
 
 logger = logging.getLogger("unigo_app")
 
@@ -565,46 +564,52 @@ def stream_chat_responses(conversation, message_text, chat_history_for_ai):
     full_response_content = ""
 
     try:
+        # [수정] stream_mode=["messages", "updates"] 로 토큰 스트리밍과 상태 업데이트를 모두 받음
         stream = run_mentor_stream(
-            question=message_text, chat_history=chat_history_for_ai, mode="react"
+            question=message_text,
+            chat_history=chat_history_for_ai,
+            mode="react",
+            stream_mode=["messages", "updates"],
         )
 
-        for chunk in stream:
-            step_name = list(chunk.keys())[0]
+        for mode, chunk in stream:
+            # 1. 메시지 스트리밍 (토큰 단위)
+            if mode == "messages":
+                message, metadata = chunk
+                # 에이전트 노드에서 생성된 AIMessageChunk인 경우에만 처리
+                if (
+                    metadata.get("langgraph_node") == "agent"
+                    and hasattr(message, "content")
+                    and message.content
+                ):
+                    # 토큰 전송
+                    data = {"type": "delta", "content": message.content}
+                    yield f"data: {json.dumps(data)}\n\n"
 
-            if step_name == "agent":
-                agent_messages = chunk["agent"].get("messages", [])
+            # 2. 상태 업데이트 (툴 호출 등 확인)
+            elif mode == "updates":
+                step_name = list(chunk.keys())[0]
 
-                if agent_messages:
-                    last_ai_message = agent_messages[-1]
+                if step_name == "agent":
+                    agent_messages = chunk["agent"].get("messages", [])
+                    if agent_messages:
+                        last_ai_message = agent_messages[-1]
 
-                    # 도구 사용 결정 시 상태 업데이트
-
-                    if (
-                        hasattr(last_ai_message, "tool_calls")
-                        and last_ai_message.tool_calls
-                    ):
-                        # tool_calls가 비어있지 않은지 확인
-
-                        if last_ai_message.tool_calls:
+                        # 도구 사용 결정 시 상태 업데이트
+                        if (
+                            hasattr(last_ai_message, "tool_calls")
+                            and last_ai_message.tool_calls
+                        ):
                             tool_names = [
                                 call["name"] for call in last_ai_message.tool_calls
                             ]
-
                             status_message = f"Tool: {', '.join(tool_names)}"
-
                             data = {"type": "status", "content": status_message}
-
                             yield f"data: {json.dumps(data)}\n\n"
 
-                    # 최종 답변 생성 시 내용 전송
-
-                    if last_ai_message.content:
-                        full_response_content = last_ai_message.content
-
-                        data = {"type": "content", "content": full_response_content}
-
-                        yield f"data: {json.dumps(data)}\n\n"
+                        # [중요] DB 저장을 위해 최종 답변 업데이트 (마지막 메시지 기준)
+                        if last_ai_message.content:
+                            full_response_content = last_ai_message.content
 
     except Exception as e:
         logger.error(f"AI Stream Error: {e}", exc_info=True)
@@ -966,6 +971,10 @@ def onboarding_api(request):
         data = json.loads(request.body)
         answers = data.get("answers")
         session_id = data.get("session_id")
+        conversation_id = data.get(
+            "conversation_id"
+        )  # [MODIFIED] Receive existing conversation ID
+        history = data.get("history", [])
 
         if not answers:
             return JsonResponse({"error": "Empty answers"}, status=400)
@@ -975,10 +984,81 @@ def onboarding_api(request):
 
         result = run_major_recommendation(onboarding_answers=answers)
 
+        # 1. Conversation 생성 또는 검색
+        user = request.user if request.user.is_authenticated else None
         if not session_id:
             session_id = str(uuid.uuid4())
 
-        user = request.user if request.user.is_authenticated else None
+        title = "전공 추천 상담"
+        if history and len(history) > 0:
+            first_answer = next(
+                (h["content"] for h in history if h["role"] == "user"), "전공 추천 상담"
+            )
+            title = first_answer[:30]
+
+        conversation = None
+        created = True  # reuse flag
+
+        # [MODIFIED] Try to reuse existing conversation
+        if user and conversation_id:
+            try:
+                conversation = Conversation.objects.get(id=conversation_id, user=user)
+                created = False
+            except Conversation.DoesNotExist:
+                pass
+
+        if not conversation:
+            # Create new
+            if user:
+                conversation = Conversation.objects.create(
+                    user=user, session_id=session_id, title=title
+                )
+            else:
+                # Session based
+                conversation, created = Conversation.objects.get_or_create(
+                    session_id=session_id, defaults={"title": title}
+                )
+
+        # 2. Onboarding History 저장 (Message 모델)
+        if conversation and history:
+            # If reusing conversation, we must be careful not to duplicate existing messages.
+            # Simple heuristic: If we reused (not created), assume previous messages are safe types.
+            # But 'history' passed from frontend includes EVERYTHING.
+            # We should only append the *tail* that is not in DB.
+            # Since Onboarding follows a linear flow without API saves (except the start 'Hello'?),
+            # We can count existing messages in DB.
+
+            existing_count = conversation.messages.count()
+
+            # If newly created, existing_count is 0. All history is new.
+            # If reused, existing_count might be e.g. 2 ("Hello", "AI response").
+            # Frontend history might be 6 ("Hello", "AI", "Start", "Q1", "A1"...).
+            # So we take history[2:] ?
+
+            # Safety check: Verify timestamps or content? Hard without IDs.
+            # Let's trust the count for linear append.
+
+            msgs_to_save = history[existing_count:]
+
+            for msg in msgs_to_save:
+                Message.objects.create(
+                    conversation=conversation,
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", ""),
+                )
+
+            # 3. 추천 결과(Summary)도 Assistant Message로 저장
+            recs = result.get("recommended_majors", [])
+            summary_text = "온보딩 답변을 바탕으로 추천 전공 TOP 5를 정리했어요:\n"
+            for idx, major in enumerate(recs[:5]):
+                summary_text += f"{idx + 1}. {major.get('major_name')} (점수 {major.get('score', 0):.2f})\n"
+            summary_text += (
+                "\n필요하면 위 전공 중 궁금한 학과를 지정해서 더 물어봐도 좋아요!"
+            )
+
+            Message.objects.create(
+                conversation=conversation, role="assistant", content=summary_text
+            )
 
         MajorRecommendation.objects.create(
             user=user,
@@ -988,6 +1068,8 @@ def onboarding_api(request):
         )
 
         result["session_id"] = session_id
+        if conversation:
+            result["conversation_id"] = conversation.id
 
         return JsonResponse(result)
 

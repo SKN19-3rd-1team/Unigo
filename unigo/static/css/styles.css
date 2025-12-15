@@ -375,7 +375,6 @@ html {
     transform: translateZ(0) scale(1.15);
     box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
     z-index: 10;
-    border-color: #43334C;
 }
 
 .carousel-item:not(.active) {

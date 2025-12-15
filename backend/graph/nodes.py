@@ -5,7 +5,7 @@ LangGraph 그래프를 구성하는 노드 함수들을 정의합니다.
 ReAct 패턴: LLM이 자율적으로 tool 호출 여부를 결정 (agent_node, should_continue)
 """
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import SystemMessage
 
 from .state import MentorState
 from backend.rag.retriever import (
@@ -315,6 +315,7 @@ def agent_node(state: MentorState) -> dict:
     interests = state.get("interests")
 
     # system_message는 interests 유무와 상관없이 항상 만들어둔다.
+    system_message = None
     if not messages or not any(isinstance(m, SystemMessage) for m in messages):
         interests_text = f"{interests}" if interests else "없음"
 
@@ -336,7 +337,8 @@ def agent_node(state: MentorState) -> dict:
 6. **캠퍼스 구분**: '본교'와 '분교(ERICA, 세종, 글로컬 등)'는 서로 다른 대학으로 취급하여 명확히 구분해서 답변하세요. (예: "한양대학교는 컴퓨터소프트웨어학부, 한양대학교 ERICA는 컴퓨터학부가 개설되어 있습니다.")
 
 [출력 제어]
-- 사용자가 요청한 정보(예: 커리큘럼)만 제공하고, 요청하지 않은 정보(예: 연봉, 자격증)는 과도하게 나열하지 마세요.
+- **[중요] `get_major_career_info` 호출 시 최적화**: 사용자가 특정 정보(예: 취업률, 진로, 배우는 과목 등)만 물어보는 경우, `specific_field` 파라미터를 사용하여 필요한 정보만 요청하세요. (예: `specific_field='stats'`)
+- 사용자가 요청하지 않은 정보는 과도하게 나열하지 말고, 질문에 필요한 핵심 답변만 제공하세요.
 - 친절하고 구조화된 설명을 제공하세요.
 - **[중요]** 사용자가 처음 인사를 하거나, 무엇을 해야 할지 물어볼 때는 반드시 **"추천 시작"** 기능을 통해 맞춤형 전공 추천을 받을 수 있음을 안내하세요. (예: "저와 함께 나에게 딱 맞는 전공을 찾아볼까요? '추천 시작'이라고 말씀해 주세요!")
 - **[예외 처리]** 만약 사용자가 "추천 시작"이라고 말했는데 이 메시지를 받았다면(프론트엔드 트리거 실패), "학과 목록"을 나열하지 말고, **"추천 기능을 시작하려면 '추천 시작'을 정확히 입력해 주세요."** 라고 안내하세요. 절대 `list_departments` 툴을 호출하여 일반 학과 목록을 보여주지 마세요.
@@ -345,53 +347,14 @@ def agent_node(state: MentorState) -> dict:
 """
         )
 
-    messages = [system_message] + messages
-
-    # 🔍 입력 전처리: 단일 학과명 질문 감지 및 개선
-    from backend.graph.helper import is_single_major_query, enhance_single_major_query
-
-    # 마지막 사용자 메시지 확인
-    last_user_msg = None
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            last_user_msg = msg
-            break
-
-    # 단일 학과명 질문이면 자동으로 명확한 질문으로 변환
-    if last_user_msg and is_single_major_query(last_user_msg.content):
-        original_query = last_user_msg.content
-        enhanced_query = enhance_single_major_query(original_query)
-        print(f"🔍 Detected single major query: '{original_query}'")
-        print(f"✨ Enhanced to: '{enhanced_query}'")
-
-        # 마지막 사용자 메시지를 개선된 버전으로 교체
-        for i in range(len(messages) - 1, -1, -1):
-            if isinstance(messages[i], HumanMessage) and messages[i] == last_user_msg:
-                messages[i] = HumanMessage(content=enhanced_query)
-                break
+    if system_message:
+        messages = [system_message] + messages
 
     response = llm_with_tools.invoke(messages)
 
-    # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
-    # ToolMessage가 없다는 것은 아직 툴 결과를 받지 않았다는 의미
-
-    has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
-
-    # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
-    # ToolMessage가 없다는 것은 아직 툴 결과를 받지 않았다는 의미
-
-    has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
-
-    # [수정] 강제 툴 사용 로직 제거 (2025-12-15)
-    # 사용자의 단순 대화(인사, 기억 확인 등)에 대해서는 툴 없이 바로 답변할 수 있도록 허용합니다.
-    # 기존에는 무조건 툴을 쓰도록 강제하여 "내 이름이 뭐야?" 같은 질문에도 오류가 났습니다.
-    
-    # 만약 LLM이 툴을 쓰지 않고 답변했다면, 그것을 그대로 인정합니다.
-    # 단, 시스템 프롬프트에서 "근거 기반 답변"을 강조했으므로, 
-    # LLM이 판단하기에 정보가 필요하면 알아서 툴을 호출할 것입니다.
-    
-    if not has_tool_results and (not hasattr(response, "tool_calls") or not response.tool_calls):
-        print("ℹ️ LLM decided to answer directly without tools.")
+    # [MODIFICIATION] Removed internal retry loop to prevent token duplication in stream.
+    # The prompt should be sufficient to encourage tool usage.
+    # If the LLM responds without tools for greetings, it is acceptable.
 
     # 4. LLM의 응답(response)을 messages에 추가하여 상태 업데이트
     #    → should_continue가 tool_calls 유무를 확인하여 다음 노드 결정
