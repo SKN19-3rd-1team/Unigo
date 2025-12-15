@@ -61,14 +61,7 @@ Select - Unigo{% endblock %} {% block extra_head %}
 
   <div class="controls">
     <button class="control-btn" id="prevBtn">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="3"
-      >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
         <polyline points="15 18 9 12 15 6"></polyline>
       </svg>
     </button>
@@ -81,24 +74,14 @@ Select - Unigo{% endblock %} {% block extra_head %}
     </div>
 
     <button class="control-btn" id="nextBtn">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="3"
-      >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
         <polyline points="9 18 15 12 9 6"></polyline>
       </svg>
     </button>
   </div>
 
   <div class="action-buttons">
-    <button
-      class="btn-cancel"
-      onclick="location.href='{% url 'unigo_app:setting' %}'"
-    >
+    <button class="btn-cancel" onclick="location.href='{% url 'unigo_app:setting' %}'">
       취소
     </button>
     <button class="btn-save" id="saveBtn">선택 및 저장</button>
@@ -281,7 +264,10 @@ Select - Unigo{% endblock %} {% block extra_head %}
       try {
         const response = await fetch("/api/setting/update-character", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
           body: JSON.stringify({ character: character.id }),
         });
 
