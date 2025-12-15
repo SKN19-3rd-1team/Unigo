@@ -81,6 +81,7 @@ node_modules/
 
 # Agent related
 .claude
+.agent
 AGENTS.md
 CLAUDE.md
 
@@ -90,3 +91,6 @@ backend/data/vector_db/
 
 # Migration tool logs (if any)
 load_data.log
+
+# test scripts
+backend/scripts/test
