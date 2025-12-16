@@ -51,80 +51,7 @@
 
 ---
 
-## 2. 프로젝트 개요
-
-### 프로젝트 명
-**Unigo (AI 기반 대학 전공 추천 및 입시 상담 챗봇)**
-
-### 프로젝트 소개
-LLM(Large Language Model)과 RAG(Retrieval Augmented Generation) 기술을 활용하여 수험생과 진로를 고민하는 학생들에게 **개인 맞춤형 전공 추천**과 **정확한 입시 정보**를 제공하는 대화형 AI 서비스입니다.
-
-### 프로젝트 필요성 (배경)
-- **정보의 비대칭성**: 대학 입시 정보는 방대하고 파편화되어 있어 학생들이 자신에게 맞는 정보를 찾기 어렵습니다.
-- **맞춤형 상담의 부재**: 기존의 커리어넷/워크넷 등은 정적인 정보만 제공하며, 개인의 성향을 고려한 심층적인 대화형 상담이 부족합니다.
-- **비용 문제**: 사설 입시 컨설팅은 고비용으로 접근성이 낮습니다. 누구나 쉽게 접근 가능한 AI 멘토가 필요합니다.
-
-### 프로젝트 목표
-1. **정확성**: Pinecone 벡터 DB와 RAG를 통해 Hallucination(환각)을 최소화한 신뢰성 있는 정보 제공
-2. **개인화**: LangGraph 기반의 ReAct 에이전트를 통해 사용자의 의도를 파악하고 다단계 추론을 통한 맞춤 답변 제공
-3. **편의성**: 직관적인 채팅 인터페이스와 사용자 친화적인 온보딩(성향 분석) 프로세스 구축
-
----
-
-## 3. 프로젝트 구조
-
-```
-Unigo/
-├── backend/                       # LangGraph RAG 백엔드
-│   ├── data/                      # 전공 데이터 (MySQL 시딩용)
-│   │   ├── major_detail.json      # 전공 상세 정보 원본
-│   │   ├── major_categories.json  # 전공 카테고리
-│   │   └── university_data_cleaned.json # 대학 정보
-│   ├── db/                        # 데이터베이스 관리 (SQLAlchemy)
-│   │   ├── connection.py          # DB 연결 설정
-│   │   ├── models.py              # DB 모델 정의 (Major, University 등)
-│   │   ├── seed_all.py            # 통합 데이터 시딩 스크립트
-│   │   └── seed_*.py              # 개별 시딩 스크립트
-│   ├── graph/                     # LangGraph 노드 및 상태
-│   │   ├── nodes.py               # 전공 추천 로직, 차등 점수 시스템
-│   │   ├── state.py               # 그래프 상태 정의
-│   │   └── graph_builder.py       # 그래프 구성
-│   ├── rag/                       # RAG 시스템
-│   │   ├── retriever.py           # Pinecone 검색 로직
-│   │   ├── embeddings.py          # OpenAI 임베딩 핸들러
-│   │   ├── tools.py               # LangChain 툴 (전공/대학/입시 검색)
-│   │   ├── vectorstore.py         # Pinecone 벡터 DB 연결 및 인덱싱
-│   │   ├── loader.py              # 데이터 로딩 유틸리티
-│   │   └── build_major_index.py   # 전공 상세 정보 벡터 인덱싱 스크립트
-│   ├── scripts/                   # 추가 유틸리티 스크립트
-│   │   ├── ingest_major_categories.py   # 학과 대분류 벡터 인덱싱
-│   │   └── ingest_university_majors.py  # 대학별 학과 정보 벡터 인덱싱
-│   ├── main.py                    # 메인 진입점 (run_mentor, run_major_recommendation)
-│   └── config.py                  # 설정 관리 (.env 로드)
-│
-├── unigo/                         # Django 웹 애플리케이션
-│   ├── static/                    # 정적 파일 (CSS, JS, Images)
-│   │   ├── css/                   # 스타일시트
-│   │   ├── js/                    # 클라이언트 로직 (chat.js 등)
-│   │   └── images/                # 이미지 자산
-│   ├── templates/                 # Django HTML 템플릿
-│   ├── unigo_app/                 # 메인 Django 앱
-│   │   ├── views.py               # API 엔드포인트 및 뷰
-│   │   ├── urls.py                # URL 라우팅
-│   │   └── models.py              # Django 모델 (UserProfile, Conversation 등)
-│   ├── unigo/                     # Django 프로젝트 설정
-│   └── manage.py                  # Django 관리 스크립트
-│
-├── docs/                          # 프로젝트 문서
-├── assets/                        # 공통 자산
-├── .env                           # 환경 변수 (OPENAI_API_KEY 등)
-├── .gitignore                     # Git 제외 파일
-└── requirements.txt               # Python 의존성
-```
-
----
-
-## 4. 프로젝트 변경 사항 (Evolution)
+## 2. 프로젝트 변경 사항 (Evolution)
 
 > **"단순 정보 검색에서 개인화된 입시 멘토링 서비스로"**
 >
@@ -146,11 +73,102 @@ Unigo/
 2. **확장성 부족**: 16개 대학 데이터를 모으는 데에도 막대한 리소스가 투입되었으며, 전국 대학으로 확장하기에는 유지보수 비용이 기하급수적으로 증가했습니다.
 3. **목표 달성 실패**: 결과적으로 데이터의 구멍이 많아, 사용자에게 신뢰할 수 있는 "구체적이고 정확한 커리큘럼"을 제공한다는 핵심 목표를 달성하는 데 어려움이 있었습니다.
 
-**해결책:** 이에 따라 "특정 대학의 깊이(Depth)"보다는 **"전국 대학의 넓이(Coverage)와 정확성"**에 집중하기로 전략을 수정하고, 공신력 있는 **공공 데이터 API(커리어넷 등)**를 활용하는 방식으로 데이터 파이프라인을 전면 개편했습니다.
+**해결책:** 이에 따라 "특정 대학별 정보의 깊이(Depth)"보다는 **"전국 대학 정보의 Coverage와 정확성"**에 집중하기로 전략을 수정하고, 공신력 있는 **공공 데이터 API(커리어넷 등)**를 활용하는 방식으로 데이터 파이프라인을 개편했습니다.
 
 ### 핵심 개선 사항 상세
-1. **데이터 파이프라인의 완성**: 크롤링한 데이터에 의존하던 방식을 탈피, **MySQL(정형)**과 **Pinecone(비정형)**을 아우르는 하이브리드 데이터 구조를 완성하여 정보의 양과 질을 모두 잡았습니다.
+1. **데이터 파이프라인의 완성**: 크롤링한 데이터에 의존하던 방식을 변경, **MySQL(정형)**과 **Pinecone(비정형)**을 아우르는 하이브리드 데이터 구조를 완성하여 정보의 양과 질을 모두 잡았습니다.
 2. **사용자 경험의 혁신**: 귀여운 캐릭터 멘토와 대화하며 자연스럽게 진로를 찾아가는 **여정 중심의 서비스**로 재설계했습니다.
+
+---
+
+## 3. 프로젝트 개요
+
+### 프로젝트 명
+**Unigo (AI 기반 대학 전공 추천 및 입시 상담 챗봇)**
+
+### 프로젝트 소개
+LLM(Large Language Model)과 RAG(Retrieval Augmented Generation) 기술을 활용하여 수험생과 진로를 고민하는 학생들에게 **개인 맞춤형 전공 추천**과 **정확한 입시 정보**를 제공하는 대화형 AI 서비스입니다.
+
+### 프로젝트 필요성 (배경)
+- **정보의 비대칭성**: 대학 입시 정보는 **방대하고 파편화**되어 있어 학생들이 자신에게 맞는 정보를 찾기 어렵습니다.
+- **맞춤형 상담의 부재**: 기존의 커리어넷/워크넷 등은 정적인 정보만 제공하며, **개인의 성향을 고려한 심층적인 대화형 상담이 부족합니다**.
+- **비용 문제**: 사설 입시 컨설팅은 **고비용**으로 접근성이 낮습니다. 누구나 쉽게 접근 가능한 AI 멘토가 필요합니다.
+
+### 프로젝트 목표
+1. **정확성**: Pinecone 벡터 DB와 RAG를 통해 Hallucination을 최소화한 신뢰성 있는 정보 제공
+2. **개인화**: LangGraph 기반의 ReAct 에이전트를 통해 사용자의 의도를 파악하고 다단계 추론을 통한 맞춤 답변 제공
+3. **편의성**: 직관적인 채팅 인터페이스와 사용자 친화적인 온보딩 프로세스 구축
+
+---
+
+## 4. 프로젝트 구조
+
+```
+Unigo/
+├── backend/                             # AI 백엔드 (LangGraph + RAG)
+│   ├── data/                            # 초기 데이터 (Seeding)
+│   │   ├── major_detail.json            # 학과 상세 정보 (커리어넷)
+│   │   ├── major_categories.json        # 학과 대분류 데이터
+│   │   └── university_data_cleaned.json # 대학 기본 정보 (대학어디가)
+│   ├── db/                              # DB 관리 (SQLAlchemy)
+│   │   ├── connection.py                # DB 연결 설정
+│   │   ├── models.py                    # DB 테이블 모델 (Major, University 등)
+│   │   ├── seed_all.py                  # 전체 데이터 시딩 실행
+│   │   └── seed_*.py                    # 개별 테이블 시딩 스크립트
+│   ├── graph/                           # LangGraph 워크플로우
+│   │   ├── graph_builder.py             # 그래프 구조 및 엣지 연결
+│   │   ├── nodes.py                     # 노드별 로직 (Agent, Tools)
+│   │   ├── state.py                     # 그래프 상태(State) 정의
+│   │   └── helper.py                    # 그래프 유틸리티
+│   ├── rag/                             # RAG 시스템
+│   │   ├── tools.py                     # LangChain 도구 (검색, 조회)
+│   │   ├── retriever.py                 # Pinecone 검색 로직
+│   │   ├── embeddings.py                # 임베딩 생성 (OpenAI)
+│   │   ├── vectorstore.py               # Pinecone 클라이언트 및 인덱싱
+│   │   ├── loader.py                    # JSON 데이터 로딩 및 파싱
+│   │   └── build_major_index.py         # 벡터 인덱스 생성 스크립트
+│   ├── scripts/                         # 추가 유틸리티
+│   │   └── ingest_*.py                  # 데이터 인덱싱 스크립트
+│   ├── config.py                        # 환경 변수 및 설정 로드
+│   └── main.py                          # AI 서버 엔트리포인트
+│
+├── unigo/                               # Django 웹 애플리케이션
+│   ├── unigo_app/                       # 메인 앱
+│   │   ├── views.py                     # API 및 뷰 로직 (채팅, 인증)
+│   │   ├── models.py                    # Django 모델 (Conversation, Message)
+│   │   ├── urls.py                      # URL 라우팅
+│   │   └── admin.py                     # 관리자 페이지 설정
+│   ├── unigo/                           # 프로젝트 설정
+│   │   ├── settings.py                  # Django 전역 설정
+│   │   ├── urls.py                      # 루트 URL 설정
+│   │   └── asgi.py/wsgi.py              # 서버 인터페이스
+│   ├── templates/                       # HTML 템플릿 파일
+│   │   └── unigo_app/
+│   │       ├── base.html                # 기본 레이아웃 (헤더, 푸터 포함)
+│   │       ├── auth.html                # 로그인/회원가입 페이지
+│   │       ├── chat.html                # 메인 채팅 인터페이스
+│   │       ├── character_select.html    # 캐릭터 선택 (온보딩)
+│   │       └── setting.html             # 사용자 설정 페이지
+│   ├── static/                          # 정적 자산
+│   │   ├── css/                         # 스타일시트
+│   │   │   ├── chat.css                 # 채팅 화면 스타일
+│   │   │   ├── setting.css              # 설정 페이지 스타일
+│   │   │   └── styles.css               # 공통 스타일
+│   │   ├── js/                          # 클라이언트 스크립트
+│   │   │   ├── chat.js                  # 채팅 로직 및 웹소켓 처리
+│   │   │   ├── setting.js               # 설정 변경 핸들링
+│   │   │   └── character_select.js      # 온보딩 인터랙션
+│   │   └── images/                      # 이미지 자산 (캐릭터, 아이콘)
+│   ├── media/                           # 사용자 업로드 파일
+│   └── manage.py                        # Django 관리 명령
+│
+├── nginx/                               # Nginx 설정 파일
+├── docs/                                # 개발 문서 및 회고록
+├── docker-compose.yml                   # Docker 컨테이너 오케스트레이션
+├── Dockerfile                           # Docker 이미지 빌드 설정
+├── .env                                 # 환경 변수 (API Key, DB 접속 정보)
+└── requirements.txt                     # Python 패키지 의존성 목록
+```
 
 ---
 
