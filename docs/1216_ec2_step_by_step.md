@@ -121,8 +121,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 컨테이너가 실행되었다면, 데이터베이스 초기화가 필요합니다.
 
 ```bash
-# 1. DB 마이그레이션 (테이블 생성)
+# 1. DB 마이그레이션 (테이블 생성 - Django)
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+
+# 2. [필수] AI용 추가 테이블 생성 (SQLAlchemy)
+docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.init_db"
+
+# 3. [필수] AI용 카테고리 데이터 적재
+docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.seed_categories"
 
 # 2. 정적 파일 모으기 (CSS/JS 등)
 docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
@@ -188,6 +194,10 @@ AWS 프리티어를 사용하더라도 주의하지 않으면 요금이 청구�
     - `.env` 파일의 `ALLOWED_HOSTS`에 반드시 **EC2의 Public IP**나 **도메인**을 적어야 합니다.
     - 예: `ALLOWED_HOSTS=3.12.34.56,mydomain.com`
     - 이걸 안 하면 접속 시 `Bad Request (400)` 에러가 뜹니다.
+    - **[주의]** `.env` 수정 후에는 `restart`가 아니라 `up -d`를 해야 반영됩니다!
+      ```bash
+      docker compose -f docker-compose.prod.yml up -d web
+      ```
 
 2.  **DEBUG 모드 끄기**:
 
