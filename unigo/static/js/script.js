@@ -1,5 +1,6 @@
 // 메인 콘텐츠 로그인/회원가입 버튼
 const signInBtn = document.getElementById("btn-signin");
+const logInBtn = document.getElementById("btn-login");
 const signUpBtn = document.getElementById("btn-signup");
 
 // 로그인 팝업
@@ -15,6 +16,15 @@ if (signInBtn) {
         modalLogin.classList.add("show");
     });
 }
+
+const loginBtns = document.querySelectorAll(".btn-login");
+
+loginBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        modalLogin.classList.add("show");
+    });
+});
+
 
 closeBtnLogin.addEventListener("click", () => modalLogin.classList.remove("show"));
 overlayLogIn.addEventListener("click", () => modalLogin.classList.remove("show"));
@@ -34,9 +44,7 @@ if (loginConfirmBtn) {
 
         fetch("/api/auth/login", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: getPostHeaders(),
             body: JSON.stringify({
                 username: emailOrId,
                 password: password
@@ -116,9 +124,7 @@ if (signUpConfirmBtn) {
         // 회원가입 API 호출
         fetch("/api/auth/signup", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: getPostHeaders(),
             body: JSON.stringify({
                 username: username,
                 email: email,
@@ -171,3 +177,102 @@ closeBtnFindPassword.addEventListener("click", () => modalFindPassword.classList
 overlayFindPassword.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 returnLoginBtn.addEventListener("click", () => modalFindPassword.classList.remove("show"));
 
+
+// ==========================================
+// [REMOVED] Hero Image Sync for Auth Page
+// (User requested to always show Rabbit on login page)
+// ==========================================
+// ==========================================
+// [FIX] Hero Image Force Rabbit
+// Always show Rabbit on Auth page, ignoring localStorage
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    const heroImg = document.querySelector(".hero-img");
+    if (heroImg) {
+        // Force reset to Rabbit in case some other script tried to change it
+        heroImg.src = "/static/images/rabbit.png";
+    }
+});
+
+// [REMOVED] deleteAccountBtn from global scope. Logic is in setting.js
+
+// ==========================================
+// [MOVED] Duplicate Checks (Email/Username) from base.html
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const showWarning = (inputElement, message) => {
+        // Use native browser validation bubble
+        inputElement.setCustomValidity(message);
+        inputElement.reportValidity();
+    };
+
+    const showSuccess = (inputElement, message) => {
+        inputElement.setCustomValidity(""); // Clear error
+        alert(message);
+    };
+
+    // Clear custom validity on input so user can try again
+    const clearValidity = (e) => {
+        e.target.setCustomValidity("");
+    };
+
+    // Email Check
+    const btnEmailConfirm = document.getElementById('btn-email-confirm');
+    const emailInput = document.getElementById('signup-email');
+    if (btnEmailConfirm && emailInput) {
+        emailInput.addEventListener('input', clearValidity);
+
+        btnEmailConfirm.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                showWarning(emailInput, "이메일을 입력해주세요.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/check-email', {
+                    method: 'POST',
+                    headers: getPostHeaders(),
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.exists) {
+                    showWarning(emailInput, data.message);
+                } else {
+                    showSuccess(emailInput, data.message);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+
+    // Username Check
+    const btnUserConfirm = document.getElementById('btn-username-confirm');
+    const userInput = document.getElementById('signup-username');
+    if (btnUserConfirm && userInput) {
+        userInput.addEventListener('input', clearValidity);
+
+        btnUserConfirm.addEventListener('click', async () => {
+            const username = userInput.value.trim();
+            if (!username) {
+                showWarning(userInput, "닉네임을 입력해주세요.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/check-username', {
+                    method: 'POST',
+                    headers: getPostHeaders(),
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (data.exists) {
+                    showWarning(userInput, data.message);
+                } else {
+                    showSuccess(userInput, data.message);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+});

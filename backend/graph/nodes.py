@@ -5,10 +5,7 @@ LangGraph 그래프를 구성하는 노드 함수들을 정의합니다.
 ReAct 패턴: LLM이 자율적으로 tool 호출 여부를 결정 (agent_node, should_continue)
 """
 
-import re
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
-from langgraph.prebuilt import ToolNode
-from langgraph.constants import END
+from langchain_core.messages import SystemMessage
 
 from .state import MentorState
 from backend.rag.retriever import (
@@ -30,21 +27,14 @@ from backend.config import get_llm
 # LLM 인스턴스 생성 (.env에서 설정한 LLM_PROVIDER와 MODEL_NAME 사용)
 llm = get_llm()
 
-# doc_type별 기본 가중치 (관심사/과목 비중을 약간 높게 설정)
+# doc_type별 기본 가중치
 MAJOR_DOC_WEIGHTS = {
-    "summary": 1.0,
-    "interest": 1.1,
-    "property": 0.9,
+    "summary": 0.8,
+    "interest": 1.3,
+    "property": 0.8,
     "subjects": 1.2,
     "jobs": 1.0,
 }
-
-# 선호 전공 점수 부여 티어 (Tiered Scoring System)
-# 사용자가 명시적으로 선호한 전공에 대한 차등 점수 부여
-SCORE_TIER_1_EXACT_MATCH = 20.0      # 정확히 일치 (예: "컴퓨터공학" == "컴퓨터공학")
-SCORE_TIER_2_STARTS_WITH = 15.0      # 접두어 일치 (예: "컴퓨터공학" in "컴퓨터공학과")
-SCORE_TIER_3_CONTAINS = 10.0         # 포함 (예: "컴퓨터" in "정보컴퓨터공학부")
-SCORE_TIER_4_VECTOR_MATCH = 5.0      # 벡터/별칭 유사도 검색 결과
 
 
 # ==================== ReAct 에이전트용 설정 ====================
@@ -84,13 +74,16 @@ def _build_user_profile_text(answers: dict, fallback_question: str | None) -> st
         return ""
 
     ordered_keys = [
-        ("preferred_majors", "관심 전공"),
+        # ("preferred_majors", "관심 전공"), # [2025-12-12] 질문 제거됨
         ("subjects", "좋아하는 과목"),
         ("interests", "관심사/취미"),
         ("activities", "교내/대외 활동"),
         ("desired_salary", "희망 연봉"),
         ("career_goal", "진로 목표"),
         ("strengths", "강점"),
+        ("career_field", "중요 가치관"),
+        ("topics", "관심 주제"),
+        ("learning_style", "학습 스타일"),
     ]
 
     sections: list[str] = []
@@ -129,24 +122,63 @@ def _summarize_major_hits(hits, aggregated_scores, limit: int = 10):
     # Pinecone 검색 결과를 전공별로 묶어 상위 doc_type/태그 등을 정리
     per_major: dict[str, dict] = {}
 
+    # [버그 수정] 중복 제거
+    # major_id가 다르더라도 major_name이 같으면 중복으로 처리
+    seen_names = set()
+
     for hit in hits:
         if not hit.major_id:
             continue
-        entry = per_major.setdefault(
-            hit.major_id,
-            {
-                "major_id": hit.major_id,
-                "major_name": hit.major_name,
-                "cluster": hit.metadata.get("cluster"),
-                "salary": hit.metadata.get("salary"),
-                "score": aggregated_scores.get(hit.major_id, 0.0),
-                "top_doc_types": {},
-                "sample_docs": [],
-                "relate_subject_tags": [],
-                "job_tags": [],
-                "summary": "",  # summary 필드 추가
-            },
-        )
+
+        # 이름 기반 중복 체크
+        if hit.major_name in seen_names:
+            # 이미 같은 이름의 전공이 존재하면, 점수가 더 높은 경우 업데이트하거나 스킵
+            # 여기서는 간단히 스킵 (hits가 점수순 정렬되어 있다고 가정하면 첫 번째가 베스트)
+            # _summarize_major_hits 호출 전에 hits가 정렬되어 있지 않을 수 있으므로
+            # 로직을 좀 더 정교하게: 이미 존재하는 entry를 찾아서 병합
+
+            # 기존 entry 찾기 (이름으로)
+            existing_id = None
+            for mid, data in per_major.items():
+                if data["major_name"] == hit.major_name:
+                    existing_id = mid
+                    break
+
+            if existing_id:
+                entry = per_major[existing_id]
+            else:
+                # Should not happen if seen_names logic is correct
+                entry = per_major.setdefault(
+                    hit.major_id,
+                    {
+                        "major_id": hit.major_id,
+                        # ...
+                    },
+                )
+        else:
+            seen_names.add(hit.major_name)
+            entry = per_major.setdefault(
+                hit.major_id,
+                {
+                    "major_id": hit.major_id,
+                    "major_name": hit.major_name,
+                    "cluster": hit.metadata.get("cluster"),
+                    "salary": hit.metadata.get("salary"),
+                    "score": aggregated_scores.get(hit.major_id, 0.0),
+                    "top_doc_types": {},
+                    "sample_docs": [],
+                    "relate_subject_tags": [],
+                    "job_tags": [],
+                    "summary": "",
+                },
+            )
+
+        # 점수 업데이트 (Merge strategies)
+        # 같은 이름의 다른 ID가 들어왔을 때, 점수가 더 높다면 score 업데이트?
+        # 여기서는 aggregated_scores가 이미 ID별로 합산되었기 때문에
+        # 이름이 같은 ID들의 점수를 합치거나 Max를 취해야 함.
+        # 현재는 단순 스킵 방식이나 병합 방식을 써야 함.
+        # 여기서는 "병합" 방식으로 구현: 태그 등을 합침.
 
         entry["top_doc_types"][hit.doc_type] = max(
             entry["top_doc_types"].get(hit.doc_type, 0.0),
@@ -200,7 +232,7 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
 
     # 입력이 너무 많으면 처리 비용이 크므로 제한
     targets = raw_majors[:5]
-    
+
     prompt = (
         "사용자가 입력한 대학 전공명(줄임말, 오타 포함)을 가장 적절한 '표준 학과명'으로 변환해주세요.\n"
         "학과명을 명확히 판단하기 힘들거나 오타가 있는경우, 사용자에게 자신이 추론한 '표준 학과명'이 맞는지 확인하는 절차를 거쳐주세요.\n"
@@ -208,11 +240,11 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
         f"입력: {', '.join(targets)}\n"
         "출력:"
     )
-    
+
     try:
         response = llm.invoke(prompt)
         content = response.content.strip()
-        
+
         # 쉼표로 분리하여 리스트로 변환
         normalized = [item.strip() for item in content.split(",") if item.strip()]
         print(f"🤖 LLM Normalized Majors: {targets} -> {normalized}")
@@ -224,12 +256,13 @@ def _normalize_majors_with_llm(raw_majors: list[str]) -> list[str]:
 
 def recommend_majors_node(state: MentorState) -> dict:
     """
-    Build a user profile embedding from onboarding answers and rank majors.
+    온보딩 답변을 사용하여 사용자 프로필 임베딩을 생성하고 전공을 순위별로 추천합니다.
     우선순위: preferred_majors 정확 매칭 > 벡터 유사도 검색
     """
     onboarding_answers = state.get("onboarding_answers") or {}
     profile_text = _build_user_profile_text(onboarding_answers, state.get("question"))
 
+    # 온보딩 답변이 없으면 빈 결과 반환
     if not profile_text:
         return {
             "user_profile_text": "",
@@ -238,109 +271,16 @@ def recommend_majors_node(state: MentorState) -> dict:
             "major_scores": {},
         }
 
-    # 온보딩 텍스트를 단일 임베딩으로 바꿔 Pinecone 검색에 사용
+    # 1. 벡터 검색 (Vector Search)
+    # 온보딩 텍스트를 단일 임베딩으로 변환하여 Pinecone에서 의미적으로 유사한 전공 문서를 검색합니다.
     embeddings = get_embeddings()
     profile_embedding = embeddings.embed_query(profile_text)
 
+    # Pinecone에서 상위 50개 문서 검색
     hits = search_major_docs(profile_embedding, top_k=50)
+    # 검색된 문서들의 점수를 전공별로 합산
     aggregated_scores = aggregate_major_scores(hits, MAJOR_DOC_WEIGHTS)
-    
-    # 🎯 preferred_majors 우선 처리
-    preferred_majors = onboarding_answers.get("preferred_majors")
-    preferred_major_ids = set()
-    
-    if preferred_majors:
-        # preferred_majors를 문자열 또는 리스트로 처리
-        if isinstance(preferred_majors, str):
-            preferred_list = [m.strip() for m in preferred_majors.split(",") if m.strip()]
-        elif isinstance(preferred_majors, list):
-            preferred_list = [str(m).strip() for m in preferred_majors if str(m).strip()]
-        else:
-            preferred_list = []
-        
-        if preferred_list:
-            # 🤖 LLM을 통한 전공명 정규화 (줄임말/오타 보정)
-            normalized_list = _normalize_majors_with_llm(preferred_list)
-            
-            # [수정] 정규화된 결과가 있다면 원본(줄임말/오타)은 검색에서 제외하여 노이즈 방지
-            # 예: "컴공" -> "컴퓨터공학과"로 변환되면 "컴공"으로는 검색하지 않음 ("냉동공조" 등이 검색되는 문제 해결)
-            if normalized_list:
-                search_targets = normalized_list
-            else:
-                search_targets = preferred_list
-            
-            # tools.py의 검색 함수 사용하여 선호 전공 별도 검색
-            from backend.rag.tools import _find_majors, _MAJOR_ID_MAP, _ensure_major_records
-            _ensure_major_records()
-            
-            # SearchHit 임포트 (함수 내 로컬 임포트)
-            from backend.rag.retriever import SearchHit
-            
-            # [수정] 이미 점수 부스팅을 적용한 전공은 중복 적용하지 않도록 set으로 관리
-            boosted_ids = set()
 
-            for preferred in search_targets:
-                print(f"🔍 Searching for preferred major: '{preferred}'")
-                
-                # 선호 전공 검색 (정확 매칭 + 벡터 검색)
-                preferred_matches = _find_majors(preferred, limit=5)
-                
-                for record in preferred_matches:
-                    if not record.major_id:
-                        continue
-                    
-                    preferred_major_ids.add(record.major_id)
-                    
-                    # 기존 aggregated_scores에 없으면 초기화
-                    is_newly_added = False
-                    if record.major_id not in aggregated_scores:
-                        aggregated_scores[record.major_id] = 1.0
-                        is_newly_added = True
-                        print(f"✅ Added preferred major '{record.major_name}' to results")
-                    
-                    # 보너스 점수 적용 (차등 점수 부여 시스템)
-                    if record.major_id not in boosted_ids:
-                        # 점수 계산 로직 - 정확도에 따른 차등 점수 부여
-                        boost_score = SCORE_TIER_4_VECTOR_MATCH  # 기본값: 벡터 유사도 검색
-                        
-                        rec_name = record.major_name.replace(" ", "")
-                        pref_key = preferred.replace(" ", "")
-                        
-                        if rec_name == pref_key:
-                            boost_score = SCORE_TIER_1_EXACT_MATCH
-                            tier_desc = "Tier 1 (Exact Match)"
-                        elif rec_name.startswith(pref_key):
-                            boost_score = SCORE_TIER_2_STARTS_WITH
-                            tier_desc = "Tier 2 (Starts With)"
-                        elif pref_key in rec_name:
-                            boost_score = SCORE_TIER_3_CONTAINS
-                            tier_desc = "Tier 3 (Contains)"
-                        else:
-                            tier_desc = "Tier 4 (Vector/Alias)"
-
-                        aggregated_scores[record.major_id] = boost_score
-                        boosted_ids.add(record.major_id)
-                        print(f"🎯 Set '{record.major_name}' score to {boost_score:.2f} [{tier_desc}]")
-
-                    # [핵심 수정] hits 리스트에 해당 전공이 없으면 합성 SearchHit 추가
-                    # 이 과정이 없으면 _summarize_major_hits가 해당 전공을 제외해버림
-                    if is_newly_added:
-                        synthetic_hit = SearchHit(
-                            doc_id=f"synthetic-{record.major_id}",
-                            major_id=record.major_id,
-                            major_name=record.major_name,
-                            doc_type="summary", # 기본 요약 문서로 취급
-                            score=1.0, # 기본 점수
-                            metadata={
-                                "cluster": record.cluster,
-                                "salary": record.salary,
-                                "relate_subject_tags": [], # 태그 추출 로직 생략 (필요 시 loader 함수 사용)
-                                "job_tags": [],
-                            },
-                            text=record.summary or f"{record.major_name}에 대한 정보입니다."
-                        )
-                        hits.append(synthetic_hit)
-    
     recommended = _summarize_major_hits(hits, aggregated_scores)
 
     serialized_hits = [
@@ -366,6 +306,7 @@ def recommend_majors_node(state: MentorState) -> dict:
 
 # ==================== ReAct 스타일 에이전트 노드 ====================
 
+
 def agent_node(state: MentorState) -> dict:
     """
     [ReAct 패턴] LLM이 자율적으로 tool 호출 여부를 결정.
@@ -374,94 +315,46 @@ def agent_node(state: MentorState) -> dict:
     interests = state.get("interests")
 
     # system_message는 interests 유무와 상관없이 항상 만들어둔다.
+    system_message = None
     if not messages or not any(isinstance(m, SystemMessage) for m in messages):
         interests_text = f"{interests}" if interests else "없음"
 
         # ✅ f-string 내부 JSON 예시는 {{ }} 로 이스케이프!
-        system_message = SystemMessage(content=f"""
+        system_message = SystemMessage(
+            content=f"""
 당신은 학생들의 전공 선택을 돕는 '대학 전공 탐색 멘토'입니다. 모든 답변은 한국어로 작성하세요.
 
-[🚨 절대 규칙 - 반드시 준수]
-1. **툴에서 반환된 학과/대학/직업 이름만 사용**: Tool(list_departments, get_universities_by_department, get_major_career_info)이 돌려준 학과/대학/직업 이름은 **문자 하나도 바꾸지 말고 그대로 사용**합니다.
-2. **절대 추측 금지**: 데이터베이스에 없는 학과명, 대학명, 직업명을 절대로 만들어내거나 추측하지 마세요. 
-3. **툴 호출 필수**: 전공/학과/대학 관련 질문에는 반드시 적절한 툴을 tool_calls로 호출해 근거를 확보한 뒤 답변하세요.
-4. **데이터 출처 명시**: 데이터 출처가 "커리어 넷"임을 자연스럽게 언급하세요.
+[핵심 원칙]
+1. **툴 가이드 준수**: 각 툴(get_major_career_info, get_university_admission_info 등)의 설명(docstring)에 명시된 "사용 규칙"과 "제약 사항"을 철저히 따르세요.
+2. **환각 방지**: 
+   - 일반 전공 정보(취업률, 연봉)를 제공할 때, **절대 특정 대학의 정보인 것처럼** 대학명을 붙여서 설명하지 마세요.
+   - 반드시 "OO대학의 구체적 정보는 없지만, 일반적인 OO학과의 정보는..." 형태로 분리하여 답변하세요.
+3. **근거 기반 답변**: 반드시 툴 호출 결과를 바탕으로 답변하고, 추측하지 마세요. 데이터가 없으면 없다고 솔직히 말하세요.
+4. **출처 명시 필수**: 
+   - `get_major_career_info`를 통해 얻은 정보(취업률, 연봉, 진로 등)는 **반드시 '커리어넷' 기반임**을 밝혀야 합니다.
+   - **절대** "한양대학교의 취업률은..." 이라고 답변하지 마세요. 대신 "한양대학교의 공식 취업률 자료는 확인되지 않았으나, 커리어넷의 일반적인 컴퓨터공학과 취업률은..." 이라고 답변하세요.
+5. **유사 전공 허용**: 툴 검색 결과에 사용자가 query한 학과명과 정확히 일치하지 않는 학과가 있다면, 검색된 학과를 제시하세요.
+6. **캠퍼스 구분**: '본교'와 '분교(ERICA, 세종, 글로컬 등)'는 서로 다른 대학으로 취급하여 명확히 구분해서 답변하세요. (예: "한양대학교는 컴퓨터소프트웨어학부, 한양대학교 ERICA는 컴퓨터학부가 개설되어 있습니다.")
 
-[응답 방식]
-- 항상 툴 결과를 바탕으로 친절하고 구조화된 설명을 제공합니다.
-- 이미 받은 툴 결과가 있다면 재사용하고, 정보가 부족하면 같은 툴을 다시 호출해도 됩니다.
-- tool_calls 없이 추측하려는 경우, get_search_help()를 호출해 검색 도움말을 제공하세요.
-
-학생 관심사: {interests_text}
-""")
+[출력 제어]
+- **[중요] `get_major_career_info` 호출 시 최적화**: 사용자가 특정 정보(예: 취업률, 진로, 배우는 과목 등)만 물어보는 경우, `specific_field` 파라미터를 사용하여 필요한 정보만 요청하세요. (예: `specific_field='stats'`)
+- 사용자가 요청하지 않은 정보는 과도하게 나열하지 말고, 질문에 필요한 핵심 답변만 제공하세요.
+- 친절하고 구조화된 설명을 제공하세요.
+- **[중요]** 사용자가 처음 인사를 하거나, 무엇을 해야 할지 물어볼 때는 반드시 **"추천 시작"** 기능을 통해 맞춤형 전공 추천을 받을 수 있음을 안내하세요. (예: "저와 함께 나에게 딱 맞는 전공을 찾아볼까요? '추천 시작'이라고 말씀해 주세요!")
+- **[예외 처리]** 만약 사용자가 "추천 시작"이라고 말했는데 이 메시지를 받았다면(프론트엔드 트리거 실패), "학과 목록"을 나열하지 말고, **"추천 기능을 시작하려면 '추천 시작'을 정확히 입력해 주세요."** 라고 안내하세요. 절대 `list_departments` 툴을 호출하여 일반 학과 목록을 보여주지 마세요.
                                        
-    messages = [system_message] + messages
-    
-    # 🔍 입력 전처리: 단일 학과명 질문 감지 및 개선
-    from backend.graph.helper import is_single_major_query, enhance_single_major_query
-    
-    # 마지막 사용자 메시지 확인
-    last_user_msg = None
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            last_user_msg = msg
-            break
-    
-    # 단일 학과명 질문이면 자동으로 명확한 질문으로 변환
-    if last_user_msg and is_single_major_query(last_user_msg.content):
-        original_query = last_user_msg.content
-        enhanced_query = enhance_single_major_query(original_query)
-        print(f"🔍 Detected single major query: '{original_query}'")
-        print(f"✨ Enhanced to: '{enhanced_query}'")
-        
-        # 마지막 사용자 메시지를 개선된 버전으로 교체
-        for i in range(len(messages) - 1, -1, -1):
-            if isinstance(messages[i], HumanMessage) and messages[i] == last_user_msg:
-                messages[i] = HumanMessage(content=enhanced_query)
-                break
+학생 관심사: {interests_text}
+"""
+        )
+
+    if system_message:
+        messages = [system_message] + messages
 
     response = llm_with_tools.invoke(messages)
 
-
-    # 3. 검증: 첫 번째 사용자 질문에 대해 툴을 호출하지 않았는지 확인
-    # ToolMessage가 없다는 것은 아직 툴 결과를 받지 않았다는 의미
-    from langchain_core.messages import ToolMessage
-    has_tool_results = any(isinstance(m, ToolMessage) for m in messages)
-
-    # 툴 결과가 없는 상태에서 LLM이 tool_calls 없이 답변하려고 하면 차단
-    if not has_tool_results:
-        if not hasattr(response, "tool_calls") or not response.tool_calls:
-            print("⚠️ WARNING: LLM attempted to answer without using tools. Forcing tool usage.")
-            # 강제로 재시도 메시지 추가
-            error_message = HumanMessage(content=(
-                "❌ 오류: 당신은 툴을 사용하지 않고 답변하려고 했습니다.\n"
-                "**반드시 먼저 적절한 툴을 호출해야 합니다.**\n\n"
-                "다시 한 번 강조합니다:\n"
-                "1. list_departments: 학과 목록 검색\n"
-                "2. get_universities_by_department: 특정 학과를 개설한 대학 검색\n"
-                "3. get_major_career_info: 전공별 직업/진출 분야 확인\n"
-                "4. get_university_admission_info: 대학별 입시 정보(정시컷, 수시컷) 조회\n"
-                "5. get_search_help: 검색 도움말\n\n"
-                "학생의 원래 질문을 다시 읽고, 적절한 툴을 **지금 즉시** 호출하세요."
-            ))
-            messages.append(error_message)
-
-            # 재시도
-            response = llm_with_tools.invoke(messages)
-
-            # 재시도에도 툴을 사용하지 않으면 get_search_help로 폴백
-            if not hasattr(response, "tool_calls") or not response.tool_calls:
-                print("⚠️ CRITICAL: LLM still refuses to use tools. Falling back to get_search_help.")
-                from langchain_core.messages import AIMessage
-                # 강제로 get_search_help 툴 호출 생성
-                response = AIMessage(
-                    content="",
-                    tool_calls=[{
-                        "name": "get_search_help",
-                        "args": {},
-                        "id": "forced_search_help"
-                    }]
-                )
+    # [MODIFICIATION] Removed internal retry loop to prevent token duplication in stream.
+    # The prompt should be sufficient to encourage tool usage.
+    # If the LLM responds without tools for greetings, it is acceptable.
 
     # 4. LLM의 응답(response)을 messages에 추가하여 상태 업데이트
     #    → should_continue가 tool_calls 유무를 확인하여 다음 노드 결정

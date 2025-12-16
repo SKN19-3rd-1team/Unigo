@@ -6,16 +6,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Unigo{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={% now 'U' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inria+Serif:wght@700&family=Inter:wght@400&family=Roboto:wght@400&display=swap"
         rel="stylesheet">
+        <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/favicon/apple-touch-icon.png' %}">
+        <link rel="icon" type="image/png" sizes="96x96" href="{% static 'images/favicon/favicon-96x96.png' %}">
+        <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon/favicon.svg' %}">
+        <link rel="icon" href="{% static 'images/favicon/favicon.ico' %}">
+        <link rel="manifest" href="{% static 'images/favicon/site.webmanifest' %}">   
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
     <div class="page-wrapper">
         {% include "unigo_app/header.html" %}
         <main class="main-area" id="main-area">
@@ -78,10 +84,14 @@
                     <button class="popup-auth-btn-primary" id="btn-email-confirm">인증</button>
                 </div>
 
-                <label class="popup-field">
-                    <span class="popup-label">* 닉네임 (아이디)</span>
-                    <input type="text" id="signup-username" class="popup-input" placeholder="Hong Gildong" required />
-                </label>
+                <div class="popup-email-row">
+                    <label class="popup-field">
+                        <span class="popup-label">* 닉네임 (아이디)</span>
+                        <input type="text" id="signup-username" class="popup-input" placeholder="Hong Gildong"
+                            required />
+                    </label>
+                    <button class="popup-auth-btn-primary" id="btn-username-confirm">인증</button>
+                </div>
 
                 <label class="popup-field">
                     <span class="popup-label">* 비밀번호</span>
@@ -137,6 +147,7 @@
         </div>
     </div>
 
+    <script src="{% static 'js/csrf.js' %}"></script>
     <script src="{% static 'js/script.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
