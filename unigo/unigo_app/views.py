@@ -60,7 +60,9 @@ def chat(request):
             and request.user.profile.custom_image
             and request.user.profile.use_custom_image
         ):
-            custom_image_url = f"{request.user.profile.custom_image.url}?v={int(time.time())}"
+            custom_image_url = (
+                f"{request.user.profile.custom_image.url}?v={int(time.time())}"
+            )
 
         # UserProfile에서 캐릭터 가져오기
         try:
@@ -93,7 +95,9 @@ def setting(request):
         and request.user.profile.custom_image
         and request.user.profile.use_custom_image
     ):
-        custom_image_url = f"{request.user.profile.custom_image.url}?v={int(time.time())}"
+        custom_image_url = (
+            f"{request.user.profile.custom_image.url}?v={int(time.time())}"
+        )
 
     try:
         character = request.user.profile.character
@@ -584,7 +588,23 @@ def stream_chat_responses(conversation, message_text, chat_history_for_ai):
                     and message.content
                 ):
                     # 토큰 전송
-                    data = {"type": "delta", "content": message.content}
+                    # [2025-12-16] Fix: Handle list-type content (e.g. from Anthropic/OpenAI multimodal outputs)
+                    # to prevent "[object Object]" in frontend.
+                    content_str = ""
+                    if isinstance(message.content, list):
+                        for block in message.content:
+                            if isinstance(block, str):
+                                content_str += block
+                            elif isinstance(block, dict) and "text" in block:
+                                content_str += block["text"]
+                    else:
+                        content_str = str(message.content)
+
+                    # 빈 문자열이면 스킵 (불필요한 패킷 방지)
+                    if not content_str:
+                        continue
+
+                    data = {"type": "delta", "content": content_str}
                     yield f"data: {json.dumps(data)}\n\n"
 
             # 2. 상태 업데이트 (툴 호출 등 확인)

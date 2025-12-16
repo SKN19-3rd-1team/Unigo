@@ -31,3 +31,25 @@ Dockerfile
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets (Additions from .gitignore)
+secrets.json
+local_settings.py
+
+# Django Data & Media
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Large Data
+backend/data/vector_db/
+
+# Dependencies
+node_modules/
+
+# Agent & Tools
+.agent/
+.claude/
+AGENTS.md
+CLAUDE.md
