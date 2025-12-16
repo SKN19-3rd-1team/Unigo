@@ -33,6 +33,10 @@
     gap: 12px;
 }
 
+.action-btn:hover {
+    background: skyblue;
+}
+
 .action-btn {
     width: 58px;
     height: 58px;
@@ -59,6 +63,8 @@
 .action-btn svg path {
     stroke: #3C3931;
 }
+
+
 
 /* 우측 보드 영역 */
 .board-grid {
