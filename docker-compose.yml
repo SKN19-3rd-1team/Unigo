@@ -11,35 +11,9 @@ services:
     env_file:
       - .env
     environment:
-      - MYSQL_HOST=db # Docker 내부 네트워크 호스트명 강제 설정
       - MYSQL_PORT=3306
     expose:
       - "8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - unigo_network
-
-  # MySQL 데이터베이스 서비스
-  db:
-    image: mysql:8.0
-    container_name: unigo_db
-    restart: always
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DB}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD} # 개발 편의상 동일하게 설정
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./backend/data/db_init:/docker-entrypoint-initdb.d # 초기 데이터 로드 (필요시)
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
     networks:
       - unigo_network
 
@@ -61,7 +35,6 @@ services:
 
 # 볼륨 정의
 volumes:
-  mysql_data:
   static_volume:
   media_volume:
 
