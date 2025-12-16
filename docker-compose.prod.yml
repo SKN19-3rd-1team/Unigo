@@ -22,7 +22,7 @@ services:
     networks:
       - unigo_network
 
-  # MySQL 데이터베이스 서비스 (Prod용 부활)
+  # MySQL 데이터베이스 서비스
   db:
     image: mysql:8.0
     container_name: unigo_db

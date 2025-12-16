@@ -16,23 +16,20 @@ jsonpatch==1.33
 jsonpointer==3.0.0
 langchain-community==0.4.1
 langchain-core==1.0.5
-langchain-huggingface==1.0.1
-langchain-ollama==1.0.0
 langchain-openai==1.0.3
 langchain-pinecone==0.2.13
 langchain-text-splitters==1.0.0
 langchain==1.0.7
+langchain-community==0.4.1
 langgraph==1.0.3
 mysqlclient==2.2.7
-numpy==1.26.4
 openai==2.8.1
 packaging==25.0
-pandas==2.3.3
+# pandas removed (unused)
 Pillow==10.2.0
 pinecone-client==6.0.0
 pydantic==2.12.4
 pymysql==1.1.2
-pyreadline3==3.5.4
 python-dotenv==1.2.1
 regex==2025.11.3
 requests==2.32.5
