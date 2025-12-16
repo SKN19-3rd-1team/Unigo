@@ -147,7 +147,7 @@ LOGOUT_REDIRECT_URL = "unigo_app:chat"
 
 # Media files (User uploaded files)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = BASE_DIR.parent / "media"
 
 # Logging Configuration
 LOGS_DIR = BASE_DIR / "logs"
