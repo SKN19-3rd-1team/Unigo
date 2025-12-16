@@ -155,22 +155,39 @@ python manage.py runserver
 
 #### 🧠 LangGraph Workflow (에이전트 구조)
 
-AI 멘토는 **LangGraph**를 사용하여 상태 기반의 워크플로우를 관리합니다.
+AI 멘토는 **LangGraph**를 사용하여 상태 기반의 워크플로우를 관리하며, 두 가지 독립적인 그래프로 운영됩니다.
 
-1.  **ReAct Agent Graph**:
-    ```mermaid
-    graph LR
-    Start --> Agent
-    Agent -- 도구 호출 --> Tools
-    Tools -- 결과 반환 --> Agent
-    Agent -- 답변 생성 --> End
-    ```
-    - **Agent 노드**: 사용자의 질문을 분석하고 도구(Tool) 사용 여부를 결정합니다.
-    - **Tools 노드**: 벡터 DB 검색(Pinecone), 대학 정보 조회 등 실제 작업을 수행합니다.
-    - **순환 구조(Loop)**: 에이전트는 필요한 정보를 모두 얻을 때까지 `Agent ↔ Tools` 과정을 반복할 수 있습니다.
+**1. ReAct Agent (대화형 멘토)**
 
-2.  **Major Recommendation Graph**:
-    - **Recommend 노드**: 온보딩 데이터를 입력받아 [프로필 분석 -> 벡터 검색 -> 점수 산출] 과정을 단방향 파이프라인으로 수행합니다.
+사용자의 질문을 분석하고 도구(Tools)를 활용하여 답변을 생성하는 순환형 에이전트입니다.
+
+```mermaid
+flowchart TD
+    Start(["Start"]) --> Agent["Agent Node<br/>(LLM Reasoning)"]
+
+    Agent --> Check{"Tool Needed?"}
+
+    Check -->|Yes| Tools["Tools Node<br/>(Execution)"]
+    Check -->|No| Answer["Generate Answer"]
+
+    Tools --> Agent
+    Answer --> End(["End"])
+
+    style Agent fill:#f9f,stroke:#333,stroke-width:2px
+    style Tools fill:#bbf,stroke:#333,stroke-width:2px
+```
+
+**2. Major Recommendation Pipeline (전공 추천)**
+
+온보딩 데이터를 바탕으로 최적의 전공을 추천하는 단방향 파이프라인입니다.
+
+```mermaid
+flowchart LR
+    Input(["Onboarding Data"]) --> Recommend["Recommend Node<br/>(Analysis & Scoring)"]
+    Recommend --> Output(["Recommended Majors"])
+
+    style Recommend fill:#bfb,stroke:#333,stroke-width:2px
+```
 
 ### 2. 🎓 맞춤형 전공 추천 (온보딩)
 
@@ -188,14 +205,70 @@ AI 멘토는 **LangGraph**를 사용하여 상태 기반의 워크플로우를 �
 
 ## 🛠️ 기술 스택
 
-| 분류 | 기술 | 비고 |
-|------|------|------|
-| **Backend** | Python 3.10+, Django 5.x | 웹 프레임워크 및 API |
-| **Data** | MySQL, SQLAlchemy | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
-| **AI / RAG** | LangChain, LangGraph | AI 에이전트 및 워크플로우 관리 |
-| **LLM** | OpenAI GPT-4o | 추론 및 자연어 생성 |
-| **Vector DB** | Pinecone | 고성능 벡터 검색 |
-| **Frontend** | HTML5, CSS3, Vanilla JS | 반응형 웹 인터페이스 |
+| 분류          | 기술                     | 비고                                                |
+| ------------- | ------------------------ | --------------------------------------------------- |
+| **Backend**   | Python 3.11+, Django 5.x | 웹 프레임워크 및 API                                |
+| **Data**      | MySQL, SQLAlchemy        | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
+| **AI / RAG**  | LangChain, LangGraph     | AI 에이전트 및 워크플로우 관리                      |
+| **LLM**       | OpenAI GPT-4o-mini       | 추론 및 자연어 생성                                 |
+| **Vector DB** | Pinecone                 | 고성능 벡터 검색                                    |
+| **Frontend**  | HTML5, CSS3, Vanilla JS  | 반응형 웹 인터페이스                                |
+
+## 🏗️ 시스템 아키텍처
+
+### 1. 시스템 개요 (System Overview)
+
+이 시스템은 Nginx 리버스 프록시 뒤에서 Django가 웹 애플리케이션과 AI 백엔드 로직을 모두 처리하는 모놀리식 아키텍처를 따릅니다.
+
+```mermaid
+flowchart TD
+    Client["Client (Web/Mobile)"] -->|HTTP| Nginx["Nginx (Reverse Proxy)"]
+    Nginx -->|Proxy Pass| Gunicorn["Gunicorn (WSGI Server)"]
+    Gunicorn --> Django["Django Application (Unigo)"]
+
+    subgraph Backend ["Django Backend"]
+        Django -->|View Logic| UnigoApp["unigo_app (Chat/Auth)"]
+        Django -->|AI Logic| AIBackend["backend (LangGraph)"]
+    end
+
+    subgraph Data ["Data Layer"]
+        Django -->|ORM| MySQL[("MySQL Database")]
+        AIBackend -->|Vector Search| Pinecone[("Pinecone Vector DB")]
+        AIBackend -->|LLM API| OpenAI["OpenAI API"]
+    end
+```
+
+### 2. AI 도구 (AI Tools - LangChain/LangGraph)
+
+AI 에이전트는 `backend/rag/tools.py`에 정의된 다음 도구들을 사용하여 데이터와 상호 작용하고 답변을 제공합니다.
+
+| 도구 이름 (Tool Name)            | 설명 (Description)                                                                    | 주요 데이터 소스 (Key Data Source)                  |
+| -------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `list_departments`               | 키워드나 카테고리를 기반으로 전공/학과 이름을 추천합니다.                             | **Pinecone** (벡터 검색) & **MySQL** (Major 테이블) |
+| `get_universities_by_department` | 특정 전공이 개설된 대학을 찾습니다. 의미 기반 검색과 SQL LIKE 검색을 함께 사용합니다. | **Pinecone** (의미 매칭) & **MySQL** (JSON 파싱)    |
+| `get_major_career_info`          | 전공에 대한 상세 진로 정보(연봉, 직업, 자격증 등)를 조회합니다.                       | **MySQL** (Major 테이블 - 커리어넷 데이터)          |
+| `get_university_admission_info`  | 대학별 입시 정보 URL과 코드를 제공합니다.                                             | **MySQL** (University 테이블 - 대입정보포털 데이터) |
+| `get_search_help`                | 검색 결과가 없을 때 검색 팁과 가이드를 제공합니다.                                    | 정적 가이드 문자열                                  |
+
+### 3. 데이터베이스 스키마 (Database Schema)
+
+#### 관계형 데이터베이스 (MySQL)
+
+| 모델명 (Model Name)     | 테이블 용도 (Table Purpose)      | 주요 필드 (Key Fields)                                                               |
+| ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| **Major**               | 전공 상세 정보 (커리어넷 데이터) | `name`, `summary`, `salary` (연봉), `employment_rate` (취업률), `jobs`, `chart_data` |
+| **University**          | 대학 메타데이터                  | `name`, `campus_name`, `url` (입시 URL), `code`                                      |
+| **MajorUniversity**     | 전공과 대학 간의 매핑 정보       | `primary_key(major, university)`                                                     |
+| **Conversation**        | 채팅 세션 정보                   | `session_id` (비로그인 지원), `user_id` (회원 연동)                                  |
+| **Message**             | 채팅 메시지 내역                 | `role` (역할), `content` (내용), `metadata` (도구 호출 정보)                         |
+| **MajorRecommendation** | 온보딩 추천 결과                 | `onboarding_answers` (입력값), `recommended_majors` (추천 결과 JSON)                 |
+
+#### 벡터 데이터베이스 (Pinecone)
+
+- **네임스페이스: `major_categories`**
+  - 광범위한 매칭을 위한 표준 전공명 및 카테고리 임베딩 저장.
+- **네임스페이스: `university_majors`**
+  - 세밀한 의미 기반 검색(예: "특정 대학의 특정 학과 찾기")을 위한 "대학명 + 학과명" 쌍의 임베딩 저장.
 
 ## 📖 API 엔드포인트
 
