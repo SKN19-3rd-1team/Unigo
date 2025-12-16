@@ -11,7 +11,16 @@
 
 로컬 테스트 시 **Windows 호스트의 MySQL**을 사용하므로 다음 설정이 반드시 필요합니다.
 
-### 2.1. `.env` 설정
+### 2.1. `.env` 파일 생성
+
+프로젝트 실행에 필요한 환경 변수 파일을 생성해야 합니다.
+
+```bash
+# 예시 파일 복사하여 .env 생성
+cp .env.example .env
+```
+
+### 2.2. `.env` 설정
 
 Docker Desktop(Windows/Mac) 환경에서는 호스트 접근을 위해 특수한 도메인을 사용합니다.
 
@@ -72,23 +81,23 @@ docker compose up -d --build
 
    - 실행 중에 에러가 없는지 실시간 확인:
 
-   ```bash
-   docker compose logs -f
-   ```
+```bash
+docker compose logs -f
+```
 
-   - `ctrl + c`를 누르면 로그 확인을 종료합니다(서버는 안 꺼짐).
+- `ctrl + c`를 누르면 로그 확인을 종료합니다(서버는 안 꺼짐).
 
 3. **초기 세팅 (최초 1회)**:
 
    - DB 테이블 생성 및 관리자 계정 생성이 필요할 수 있습니다.
 
-   ```bash
-   # DB 마이그레이션
-   docker compose exec web python manage.py migrate
+```bash
+# DB 마이그레이션
+docker compose exec web python manage.py migrate
 
-   # 관리자 계정 생성
-   docker compose exec web python manage.py createsuperuser
-   ```
+# 관리자 계정 생성
+docker compose exec web python manage.py createsuperuser
+```
 
 ## 5. 테스트 종료
 
@@ -101,3 +110,15 @@ docker compose down
 
 - 데이터(`mysql_data` 볼륨)는 `down`을 해도 지워지지 않고 남아있습니다.
 - 데이터를 완전히 초기화하고 싶다면: `docker compose down -v`
+
+### 💡 완전 초기화 (Docker 이미지, 컨테이너, 볼륨 모두 삭제)
+
+테스트 흔적을 남기지 않고 싹 지우고 싶다면 다음 명령어를 사용하세요.
+
+```bash
+docker compose down --rmi all -v --remove-orphans
+```
+
+- `--rmi all`: 사용된 모든 이미지를 삭제
+- `-v`: 생성된 볼륨(데이터)을 모두 삭제
+- `--remove-orphans`: 설정 파일에서 정의되지 않은 "고아" 컨테이너도 삭제
