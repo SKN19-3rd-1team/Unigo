@@ -99,7 +99,18 @@ def build_react_graph():
 
 def build_major_graph():
     """
-    Graph dedicated to onboarding-based major recommendations.
+    온보딩 기반 전공 추천 전용 그래프를 빌드합니다.
+
+    ** 그래프 구조 **
+    ```
+    [시작] → recommend → [종료]
+    ```
+
+    ** 실행 플로우 **
+    1. recommend: 온보딩 데이터(`onboarding_answers`)를 입력받아 LLM 분석, Vector Search, Scoring을 순차적으로 수행
+    2. END: 추천 결과를 반환하고 종료
+
+    이 그래프는 에이전트 루프 없이 단방향(Single-pass)으로 실행되는 간단한 파이프라인입니다.
     """
     graph = StateGraph(MentorState)
     graph.add_node("recommend", recommend_majors_node)

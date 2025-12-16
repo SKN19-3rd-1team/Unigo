@@ -22,19 +22,7 @@
         </button>
         <button class="action-btn" aria-label="정보">
             <svg viewBox="0 0 32 32" aria-hidden="true">
-                <circle cx="16" cy="11" r="2.2" />
-                <path d="M16 15v9" />
-            </svg>
-        </button>
-        <button class="action-btn" aria-label="영감">
-            <svg viewBox="0 0 32 32" aria-hidden="true">
                 <path d="M16 6l3 6 6 3-6 3-3 6-3-6-6-3 6-3z" />
-            </svg>
-        </button>
-        <button class="action-btn" aria-label="메시지">
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-                <path d="M6 9h20v14H6z" />
-                <path d="M6 11l10 7 10-7" />
             </svg>
         </button>
     </aside>
@@ -60,13 +48,76 @@
                 <br><br>
                 이외 더 자세한 학과정보 및 진로상담이 필요하시면 채팅창에 추가 질문을 해주세요.
             </div>
+            <div class="conv-list-container"></div>
             <!-- TODO: 이후 챗봇 시스템이 연결되면 우측 패널에 실제 추천 결과를 렌더링할 예정 -->
-            <img src="{% static 'images/rabbit.png' %}" alt="Unigo Rabbit" class="result-rabbit">
+            {% if custom_image_url %}
+            <img src="{{ custom_image_url }}" alt="User Custom Character" class="result-rabbit"
+                style="border-radius: 20px;">
+            {% else %}
+            <img src="{% get_static_prefix %}images/{{ character_image|default:'rabbit' }}.png" alt="User Character"
+                class="result-rabbit">
+            {% endif %}
         </section>
+
+        <!-- 대화 목록 템플릿 -->
+        <template id="conv-list-template">
+            <div class="conv-list">
+                <div class="conv-list-header">
+                    <h3 class="conv-list-title">과거 대화 목록</h3>
+                    <button type="button" class="conv-back-btn">닫기</button>
+                </div>
+                <div class="conv-list-scroll">
+                    <ul class="conv-list-ul"></ul>
+                </div>
+            </div>
+        </template>
+
+        <!-- 개별 아이템 템플릿 추가 -->
+        <template id="conv-item-template">
+            <li data-id="">
+                <div class="conv-list-header">
+                    <strong class="conv-title"></strong>
+                    <button type="button" class="conv-delete-btn" title="삭제">🗑️</button>
+                </div>
+                <small class="conv-meta"></small>
+                <span class="conv-preview"></span>
+            </li>
+        </template>
+
+        <!-- 요약 로딩 템플릿 -->
+        <template id="summary-loading-template">
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-loading">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <div class="dots">
+                        <span>.</span>
+                        <span>.</span>
+                        <span>.</span>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- 요약 결과 템플릿 추가-->
+        <template id="summary-result-template">
+            <div class="result-header">
+                <strong class="result-title">대화 요약</strong>
+            </div>
+            <div class="result-content"></div>
+        </template>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{% if character_code %}
+<div id="chat-config" data-user-character="{{ character_code|default:'rabbit' }}"
+    data-user-custom-image="{{ custom_image_url|default:'' }}" style="display:none;">
+</div>
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{% static 'js/chat.js' %}"></script>
 {% endblock %}

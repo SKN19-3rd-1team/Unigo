@@ -39,7 +39,7 @@ _MAJOR_INDEX_CACHE = None
 
 
 def _get_pinecone_client() -> Pinecone:
-    # Pinecone API 클라이언트를 초기화하고 키 누락 시 명확한 에러를 던진다
+    # Pinecone API 클라이언트를 초기화하고 키 누락 시 명확한 에러를 발생시킵니다.
     settings = get_settings()
     if not settings.pinecone_api_key:
         raise ValueError("PINECONE_API_KEY is not set in environment or .env file.")
@@ -47,7 +47,7 @@ def _get_pinecone_client() -> Pinecone:
 
 
 def _list_index_names(client: Pinecone) -> list[str]:
-    # 서버 버전에 따라 달라질 수 있는 list_indexes 응답을 문자열 리스트로 정규화
+    # 서버 버전에 따라 달라질 수 있는 list_indexes 응답을 문자열 리스트로 정규화합니다.
     response = client.list_indexes()
     if isinstance(response, dict) and "indexes" in response:
         items = response["indexes"]
@@ -83,7 +83,7 @@ def _list_index_names(client: Pinecone) -> list[str]:
 
 
 def _infer_embedding_dimension(embeddings) -> int:
-    # 설정에 명시된 차원이 없으면 임베딩 모델에서 한 번 추론하여 차원을 구한다
+    # 설정에 명시된 차원이 없으면 임베딩 모델에서 한 번 추론하여 차원을 구합니다.
     settings = get_settings()
     if settings.pinecone_dimension:
         return settings.pinecone_dimension
@@ -92,7 +92,7 @@ def _infer_embedding_dimension(embeddings) -> int:
 
 
 def _get_region_and_cloud(settings):
-    # serverless 인덱스 생성을 위해 region/cloud 정보를 읽어온다
+    # serverless 인덱스 생성을 위해 region/cloud 정보를 읽어옵니다.
     region = settings.pinecone_region or settings.pinecone_environment
     if not region:
         raise ValueError("Set PINECONE_REGION or PINECONE_ENVIRONMENT for Pinecone.")
@@ -135,7 +135,7 @@ def _get_major_namespace() -> str | None:
 
 
 def get_major_index():
-    # LangChain 외부에서 직접 인덱스 핸들이 필요할 때 사용
+    # LangChain 외부에서 직접 인덱스 핸들이 필요할 때 사용합니다.
     embeddings = get_embeddings()
     return _ensure_major_index(embeddings)
 
@@ -236,3 +236,77 @@ def index_major_docs(docs: list[MajorDoc]) -> int:
 
     vectorstore.add_texts(texts=texts, metadatas=metadatas, ids=ids)
     return len(docs)
+
+
+def index_university_majors(docs: list[Any]) -> int:
+    """
+    UniversityMajorDoc 리스트를 Pinecone의 university_majors 네임스페이스에 인덱싱한다.
+
+    Args:
+        docs: UniversityMajorDoc 리스트 (loader.py에서 정의됨)
+    """
+    # 순환 참조 방지를 위해 여기서 임포트하거나 Any로 받음
+    # docs: list[UniversityMajorDoc]
+
+    # 별도 네임스페이스 사용
+    # settings.pinecone_namespace가 "majors"라면, "university_majors"를 직접 하드코딩하거나 설정에서 가져옴
+    target_namespace = "university_majors"
+
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+
+    # 별도의 VectorStore 인스턴스 생성 (네임스페이스가 다르므로)
+    vectorstore = PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace=target_namespace,
+    )
+
+    texts: list[str] = []
+    metadatas: list[dict[str, Any]] = []
+    ids: list[str] = []
+
+    for doc in docs:
+        texts.append(doc.text)
+        ids.append(doc.doc_id)
+
+        meta = {
+            "major_id": doc.major_id,
+            "university": doc.university,
+            "department": doc.department,
+            "major_name": doc.major_name,  # 대분류
+            "doc_type": "university_major",
+        }
+        metadatas.append(meta)
+
+    vectorstore.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+    return len(docs)
+
+
+def get_university_majors_vectorstore() -> PineconeVectorStore:
+    """
+    대학-학과 검색용 VectorStore 반환 (Namespace: university_majors)
+    """
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+    return PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace="university_majors",
+    )
+
+
+def get_major_category_vectorstore() -> PineconeVectorStore:
+    """
+    대분류(표준 학과명) 검색용 VectorStore 반환 (Namespace: major_categories)
+    """
+    embeddings = get_embeddings()
+    index = _ensure_major_index(embeddings)
+    return PineconeVectorStore(
+        index=index,
+        embedding=embeddings,
+        text_key="text",
+        namespace="major_categories",
+    )

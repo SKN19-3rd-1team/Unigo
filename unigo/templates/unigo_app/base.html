@@ -12,10 +12,16 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inria+Serif:wght@700&family=Inter:wght@400&family=Roboto:wght@400&display=swap"
         rel="stylesheet">
+        <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/favicon/apple-touch-icon.png' %}">
+        <link rel="icon" type="image/png" sizes="96x96" href="{% static 'images/favicon/favicon-96x96.png' %}">
+        <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon/favicon.svg' %}">
+        <link rel="icon" href="{% static 'images/favicon/favicon.ico' %}">
+        <link rel="manifest" href="{% static 'images/favicon/site.webmanifest' %}">   
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
     <div class="page-wrapper">
         {% include "unigo_app/header.html" %}
         <main class="main-area" id="main-area">
@@ -141,85 +147,8 @@
         </div>
     </div>
 
+    <script src="{% static 'js/csrf.js' %}"></script>
     <script src="{% static 'js/script.js' %}"></script>
-    <script>
-        // Inline script for duplicate checks
-        document.addEventListener('DOMContentLoaded', () => {
-            const showWarning = (inputElement, message) => {
-                // Use native browser validation bubble
-                inputElement.setCustomValidity(message);
-                inputElement.reportValidity();
-            };
-
-            const showSuccess = (inputElement, message) => {
-                inputElement.setCustomValidity(""); // Clear error
-                alert(message);
-            };
-
-            // Clear custom validity on input so user can try again
-            const clearValidity = (e) => {
-                e.target.setCustomValidity("");
-            };
-
-            // Email Check
-            const btnEmailConfirm = document.getElementById('btn-email-confirm');
-            const emailInput = document.getElementById('signup-email');
-            if (btnEmailConfirm && emailInput) {
-                emailInput.addEventListener('input', clearValidity);
-
-                btnEmailConfirm.addEventListener('click', async () => {
-                    const email = emailInput.value.trim();
-                    if (!email) {
-                        showWarning(emailInput, "이메일을 입력해주세요.");
-                        return;
-                    }
-                    try {
-                        const res = await fetch('/api/auth/check-email', {
-                            method: 'POST',
-                            body: JSON.stringify({ email })
-                        });
-                        const data = await res.json();
-                        if (data.exists) {
-                            showWarning(emailInput, data.message);
-                        } else {
-                            showSuccess(emailInput, data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                    }
-                });
-            }
-
-            // Username Check
-            const btnUserConfirm = document.getElementById('btn-username-confirm');
-            const userInput = document.getElementById('signup-username');
-            if (btnUserConfirm && userInput) {
-                userInput.addEventListener('input', clearValidity);
-
-                btnUserConfirm.addEventListener('click', async () => {
-                    const username = userInput.value.trim();
-                    if (!username) {
-                        showWarning(userInput, "닉네임을 입력해주세요.");
-                        return;
-                    }
-                    try {
-                        const res = await fetch('/api/auth/check-username', {
-                            method: 'POST',
-                            body: JSON.stringify({ username })
-                        });
-                        const data = await res.json();
-                        if (data.exists) {
-                            showWarning(userInput, data.message);
-                        } else {
-                            showSuccess(userInput, data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                    }
-                });
-            }
-        });
-    </script>
     {% block extra_js %}{% endblock %}
 </body>
 
