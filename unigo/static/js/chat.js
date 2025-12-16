@@ -290,11 +290,10 @@ const getAvatarUrl = (type) => {
         ? window.USER_CHARACTER
         : localStorage.getItem('user_character');
     let filename = savedChar || 'rabbit';
-    if (filename === 'hedgehog') filename = 'hedgehog_ver1';
     return `/static/images/${filename}.png`;
 };
 
-const createBubble = (text, type) => {
+const createBubble = (content, type, isHtml = false) => {
     const container = document.createElement('div');
     container.classList.add('bubble-container', type);
 
@@ -307,27 +306,33 @@ const createBubble = (text, type) => {
     const bubble = document.createElement('div');
     bubble.classList.add('bubble');
 
-    // Use marked.js for parsing markdown
-    bubble.innerHTML = marked.parse(text, markedOptions);
-    container.appendChild(bubble);
+    if (isHtml) {
+        bubble.innerHTML = content;          // ✅ 스피너
+    } else {
+        bubble.innerHTML = marked.parse(content); // ✅ 일반 메시지
+    }
 
+    container.appendChild(bubble);
     return container;
 };
 
-const appendBubble = (text, type, shouldPersist = true) => {
+
+const appendBubble = (content, type, shouldPersist = true, isHtml = false) => {
     if (!chatCanvas) return null;
-    const bubbleContainer = createBubble(text, type);
+
+    const bubbleContainer = createBubble(content, type, isHtml);
     chatCanvas.appendChild(bubbleContainer);
     chatCanvas.scrollTop = chatCanvas.scrollHeight;
 
     if (shouldPersist) {
         const role = type === 'user' ? 'user' : 'assistant';
-        chatHistory.push({ role, content: text });
+        chatHistory.push({ role, content });
         saveState();
     }
-    // Return the actual bubble DIV for content updates
+
     return bubbleContainer.querySelector('.bubble');
 };
+
 
 const appendBubbleWithTyping = async (text, type, shouldPersist = true, speed = 20) => {
     if (!chatCanvas) return;
@@ -417,11 +422,21 @@ const handleOnboardingInput = async (text) => {
     }
 };
 
+// 스피너 생성 함수
+const createSpinner = (message = '응답 생성 중...') => {
+    return `
+        <div class="bubble-spinner-container">
+            <div class="bubble-spinner"></div>
+            <span>${message}</span>
+        </div>
+    `;
+};
+
 const finishOnboarding = async () => {
     onboardingState.isComplete = true;
     saveState();
 
-    const loadingBubble = appendBubble('...', 'ai', false);
+    const loadingBubble = appendBubble(createSpinner('추천 분석 중...'), 'ai', false, true);
 
     try {
         const response = await fetch(API_ONBOARDING_URL, {
@@ -447,8 +462,7 @@ const finishOnboarding = async () => {
         const recs = result.recommended_majors || [];
         let summaryText = "온보딩 답변을 바탕으로 추천 전공 TOP 5를 정리했어요:\n";
         recs.slice(0, 5).forEach((major, idx) => {
-            summaryText += `${idx + 1}. ${major.major_name} (점수 ${major.score.toFixed(2)})
-`;
+            summaryText += `${idx + 1}. ${major.major_name} (점수 ${major.score.toFixed(2)})\n`;
         });
         summaryText += "\n필요하면 위 전공 중 궁금한 학과를 지정해서 더 물어봐도 좋아요!";
 
@@ -511,11 +525,11 @@ const handleChatInput = async (text) => {
     // 1. Show user message
     appendBubble(text, 'user', true);
 
-    // 2. Create a new AI bubble for the response
-    const aiBubble = appendBubble("...", 'ai', false); // Don't persist this temporary message
+    // 2. Create a new AI bubble with spinner
+    const aiBubble = appendBubble(createSpinner(), 'ai', false, true);
     if (!aiBubble) return;
 
-    let finalResponse = ""; // To store the complete response for history
+    let finalResponse = "";
     try {
         const historyToSend = chatHistory.slice(0, -1);
         const requestBody = {
@@ -534,7 +548,7 @@ const handleChatInput = async (text) => {
         const convId = response.headers.get('X-Conversation-Id');
         if (convId && !currentConversationId) {
             currentConversationId = convId;
-            saveState(); // Save new ID
+            saveState();
             console.log('Conversation started with ID:', currentConversationId);
         }
 
@@ -544,6 +558,7 @@ const handleChatInput = async (text) => {
         // 4. Read the stream
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
         let buffer = '';
+        let isFirstContent = true; // 첫 컨텐츠 수신 시 스피너 제거용
 
         while (true) {
             const { value, done } = await reader.read();
@@ -562,14 +577,19 @@ const handleChatInput = async (text) => {
                         const data = JSON.parse(jsonString);
 
                         if (data.type === 'status') {
-                            aiBubble.innerHTML = `<span style="color:#888;">${data.content}</span>`;
+                            // 상태 메시지도 스피너와 함께 표시
+                            aiBubble.innerHTML = createSpinner(data.content);
                         } else if (data.type === 'delta') {
+                            // 첫 델타 수신 시 스피너 제거
+                            if (isFirstContent) {
+                                isFirstContent = false;
+                            }
                             finalResponse += data.content;
                             aiBubble.innerHTML = marked.parse(finalResponse, markedOptions);
                         } else if (data.type === 'content') {
-                            finalResponse = data.content; // Store final content
-                            // Format with markdown links and line breaks
-                            aiBubble.innerHTML = marked.parse(finalResponse, markedOptions);
+                            finalResponse = data.content;
+                            aiBubble.innerHTML = marked.parse(finalResponse);
+
                         } else if (data.type === 'error') {
                             finalResponse = data.content;
                             aiBubble.innerHTML = `<span style="color:red;">${data.content}</span>`;
@@ -594,7 +614,6 @@ const handleChatInput = async (text) => {
         chatHistory.push({ role: 'assistant', content: finalResponse });
         saveState();
     } else {
-        // If there was an error and we didn't get a final response, remove the placeholder bubble
         aiBubble.parentElement.remove();
     }
 };
@@ -870,7 +889,6 @@ function updateCharacterImage(characterId, customImageUrl = null) {
     }
 
     let filename = characterId || 'rabbit';
-    if (characterId === 'hedgehog') filename = 'hedgehog_ver1';
 
     imgEl.src = `/static/images/${filename}.png`;
     imgEl.alt = `${Object.keys({

@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
         {
             name: "고슴도치",
             id: "hedgehog",
-            image: "/static/images/hedgehog_ver1.png",
+            image: "/static/images/hedgehog.png",
             description:
                 "고슴도치와 함께 조심스럽지만 꾸준하게 한 걸음씩 나아가봐요.",
         },
