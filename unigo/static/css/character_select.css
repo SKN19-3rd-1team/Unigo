@@ -98,7 +98,7 @@
     position: absolute;
     inset: -3px;
     border-radius: 24px;
-    background: linear-gradient(135deg, #43334C, #5A4360);
+    background: linear-gradient(135deg, #ffffff, #c9aadb);
     z-index: -1;
     animation: glow 2s ease-in-out infinite;
 }
