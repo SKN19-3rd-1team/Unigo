@@ -14,7 +14,7 @@ python manage.py collectstatic --noinput
 
 echo "Loading initial major data..."
 # 이미 데이터가 있어도 update_or_create를 사용하므로 안전함
-python manage.py load_major_data
+# python manage.py load_major_data (Deleted legacy command)
 
 echo "Starting Gunicorn..."
 exec "$@"

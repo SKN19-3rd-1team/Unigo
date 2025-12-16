@@ -29,7 +29,7 @@ COPY . /app/
 WORKDIR /app/unigo
 
 # Entrypoint 스크립트 복사 및 실행 권한 설정 (빌드 컨텍스트 루트에서 복사)
-COPY ../entrypoint.sh /app/entrypoint.sh
+COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Entrypoint 설정
