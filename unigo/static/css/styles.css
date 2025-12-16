@@ -260,6 +260,10 @@ html {
     font-family: 'Inter', sans-serif;
 }
 
+.btn-login {
+    cursor: pointer;
+}
+
 /* 모달 배경 */
 .popup-modal {
     position: fixed;
