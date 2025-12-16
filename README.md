@@ -208,7 +208,7 @@ flowchart LR
 | 분류          | 기술                     | 비고                                                |
 | ------------- | ------------------------ | --------------------------------------------------- |
 | **Backend**   | Python 3.11+, Django 5.x | 웹 프레임워크 및 API                                |
-| **Data**      | MySQL, SQLAlchemy        | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
+| **Data**      | MySQL                    | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
 | **AI / RAG**  | LangChain, LangGraph     | AI 에이전트 및 워크플로우 관리                      |
 | **LLM**       | OpenAI GPT-4o-mini       | 추론 및 자연어 생성                                 |
 | **Vector DB** | Pinecone                 | 고성능 벡터 검색                                    |
