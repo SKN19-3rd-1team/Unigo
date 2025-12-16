@@ -60,10 +60,11 @@
                 <form id="form-nickname" onsubmit="return false;">
                     <div class="form-group">
                         <label class="input-label">새 닉네임</label>
-                        <div style="display: flex; gap: 10px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
                             <input type="text" class="form-input" id="nickname-input" placeholder="새로운 닉네임을 입력하세요">
-                            <button type="button" class="btn-secondary" id="btn-check-duplicate"
-                                style="white-space: nowrap;">중복 확인</button>
+                            <button type="button" class="btn-secondary" id="btn-check-duplicate" style="white-space: nowrap;">
+                                중복 확인
+                            </button>
                         </div>
                         <div class="error-msg" id="nickname-error"></div>
                         <div class="success-msg" id="nickname-success">사용 가능한 닉네임입니다.</div>

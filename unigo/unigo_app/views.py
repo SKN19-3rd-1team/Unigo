@@ -70,8 +70,6 @@ def chat(request):
 
         # 이미지 파일명 매핑 (js/chat.js 로직과 동일하게)
         filename = character
-        if character == "hedgehog":
-            filename = "hedgehog_ver1"
 
         context["character_code"] = character
         context["character_image"] = filename
@@ -100,8 +98,6 @@ def setting(request):
     try:
         character = request.user.profile.character
         filename = character
-        if character == "hedgehog":
-            filename = "hedgehog_ver1"
     except Exception:
         filename = "rabbit"
 

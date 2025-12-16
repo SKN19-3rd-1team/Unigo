@@ -5,7 +5,7 @@
 ## 1. 주요 변경 사항 및 검토
 
 - **Dockerization**: `Dockerfile`, `docker-compose.yml`, `nginx/nginx.conf` 추가.
-- **Database**: 로컬(Docker 내부) MySQL 사용 설정 (`mysql:8.0`).
+- **Database**: 외부/호스트 MySQL 사용 설정 (Docker 내부 DB 컨테이너 미사용).
 - **Nginx**: 80번 포트 리버스 프록시 및 정적 파일 서빙 구성.
 
 ## 2. 배포 전 체크리스트

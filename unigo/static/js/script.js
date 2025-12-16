@@ -1,5 +1,6 @@
 // 메인 콘텐츠 로그인/회원가입 버튼
 const signInBtn = document.getElementById("btn-signin");
+const logInBtn = document.getElementById("btn-login");
 const signUpBtn = document.getElementById("btn-signup");
 
 // 로그인 팝업
@@ -15,6 +16,15 @@ if (signInBtn) {
         modalLogin.classList.add("show");
     });
 }
+
+const loginBtns = document.querySelectorAll(".btn-login");
+
+loginBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        modalLogin.classList.add("show");
+    });
+});
+
 
 closeBtnLogin.addEventListener("click", () => modalLogin.classList.remove("show"));
 overlayLogIn.addEventListener("click", () => modalLogin.classList.remove("show"));
