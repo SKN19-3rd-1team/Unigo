@@ -124,19 +124,15 @@ docker compose -f docker-compose.prod.yml up -d --build
 # 1. DB 마이그레이션 (테이블 생성 - Django)
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 
-# 2. [필수] AI용 추가 테이블 생성 (SQLAlchemy)
-docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.init_db"
-
-# 3. [필수] AI용 카테고리 데이터 적재
-docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.seed_categories"
-
-# 4. [필수] AI용 전공 및 대학 데이터 전체 적재 (RAG 핵심 DB)
+# 2. [필수] AI용 데이터베이스 초기화 및 데이터 적재 (All-in-One)
+# - SQLAlchemy 테이블 생성
+# - 카테고리, 전공, 대학 데이터 적재
 docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.seed_all"
 
-# 2. 정적 파일 모으기 (CSS/JS 등)
+# 3. 정적 파일 모으기 (CSS/JS 등)
 docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
 
-# 3. 관리자 계정 생성 (Admin 페이지 접속용)
+# 4. 관리자 계정 생성 (Admin 페이지 접속용)
 docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
 ```
 
@@ -179,39 +175,40 @@ AWS 프리티어를 사용하더라도 주의하지 않으면 요금이 청구�
 
 ### 8.1. 비용 관련 주의사항 (Cost Management)
 
-1.  **탄력적 IP (Elastic IP) 요금**:
+1. **탄력적 IP (Elastic IP) 요금**:
 
     - 인스턴스가 **실행 중(Running)**일 때 연결된 IP 1개는 무료입니다.
     - 하지만 **인스턴스를 중지(Stop)**했는데 IP를 반납(Release)하지 않고 가지고만 있으면 **시간당 요금이 부과**됩니다. ($0.005/시간 ≈ 월 4,000원)
     - **해결책**: 서버를 아예 안 쓸 거면 IP도 "연결 해제(Disassociate)" 후 "릴리스(Release)" 하세요.
 
-2.  **스토리지 (EBS) 용량**:
+2. **스토리지 (EBS) 용량**:
 
     - 프리티어는 매월 30GB까지 무료입니다.
     - 인스턴스를 "종료(Terminate)"해도 EBS 볼륨이 삭제되지 않도록 설정된 경우, 계속 요금이 나갑니다.
     - **확인**: EC2 대시보드 -> **Elastic Block Store** -> **볼륨** 메뉴에서 안 쓰는 볼륨이 있는지 주기적으로 확인하세요.
 
-3.  **데이터 전송 (Data Transfer)**:
+3. **데이터 전송 (Data Transfer)**:
     - 인터넷으로 나가는 데이터(Outbound)는 월 100GB까지 무료입니다.
     - 이미지/동영상을 너무 많이 서빙하면 초과될 수 있습니다. (Nginx Gzip 설정을 적용해두어 일부 절감됩니다.)
 
 ### 8.2. 보안 및 운영 주의사항 (Security)
 
-1.  **ALLOWED_HOSTS 설정 (중요)**:
+1. **ALLOWED_HOSTS 설정 (중요)**:
 
     - `.env` 파일의 `ALLOWED_HOSTS`에 반드시 **EC2의 Public IP**나 **도메인**을 적어야 합니다.
     - 예: `ALLOWED_HOSTS=3.12.34.56,mydomain.com`
     - 이걸 안 하면 접속 시 `Bad Request (400)` 에러가 뜹니다.
     - **[주의]** `.env` 수정 후에는 `restart`가 아니라 `up -d`를 해야 반영됩니다!
+
       ```bash
       docker compose -f docker-compose.prod.yml up -d web
       ```
 
-2.  **DEBUG 모드 끄기**:
+2. **DEBUG 모드 끄기**:
 
     - `.env`에서 `DJANGO_DEBUG=False`로 되어 있는지 꼭 확인하세요. 켜져 있으면 에러 발생 시 서버 내부 코드가 다 노출됩니다.
 
-3.  **SSH 포트 제한**:
+3. **SSH 포트 제한**:
     - 보안 그룹에서 22번 포트(SSH)는 가급적 **"내 IP (My IP)"**로만 열어두는 것이 안전합니다. 해커들의 무차별 대입 공격(Brute Force) 대상 1순위입니다.
 
 ## 9. [TIP] 서버 멈춤 현상 해결 (Swap 메모리)

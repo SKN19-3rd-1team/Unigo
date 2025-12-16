@@ -160,31 +160,6 @@ erDiagram
         string name
         string code
     }
-
-    %% ==========================================
-    %% 3. App Data Cluster (Django Models)
-    %% ** backend/db와 별개로 존재하는 테이블들 **
-    %% ==========================================
-    APP_UNIVERSITY ||--o{ APP_MAJOR_UNIVERSITY : "offers"
-    APP_MAJOR ||--o{ APP_MAJOR_UNIVERSITY : "is offered in"
-
-    APP_MAJOR {
-        int id PK
-        string name
-        string cluster
-    }
-
-    APP_UNIVERSITY {
-        int id PK
-        string name
-        string area
-    }
-
-    APP_MAJOR_UNIVERSITY {
-        int id PK
-        int major_id FK
-        int university_id FK
-    }
 ```
 
 ### ERD 상세 분석
