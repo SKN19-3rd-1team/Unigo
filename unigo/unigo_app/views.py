@@ -7,6 +7,7 @@ import sys
 import os
 import uuid
 import logging
+import time
 from django.contrib.auth.decorators import login_required
 
 logger = logging.getLogger("unigo_app")
@@ -59,7 +60,7 @@ def chat(request):
             and request.user.profile.custom_image
             and request.user.profile.use_custom_image
         ):
-            custom_image_url = request.user.profile.custom_image.url
+            custom_image_url = f"{request.user.profile.custom_image.url}?v={int(time.time())}"
 
         # UserProfile에서 캐릭터 가져오기
         try:
@@ -94,7 +95,7 @@ def setting(request):
         and request.user.profile.custom_image
         and request.user.profile.use_custom_image
     ):
-        custom_image_url = request.user.profile.custom_image.url
+        custom_image_url = f"{request.user.profile.custom_image.url}?v={int(time.time())}"
 
     try:
         character = request.user.profile.character
@@ -280,7 +281,7 @@ def auth_me(request):
                     if hasattr(request.user, "profile")
                     else "rabbit",
                     # [수정됨] use_custom_image가 True일 때만 custom_image_url 반환
-                    "custom_image_url": request.user.profile.custom_image.url
+                    "custom_image_url": f"{request.user.profile.custom_image.url}?v={int(time.time())}"
                     if hasattr(request.user, "profile")
                     and request.user.profile.custom_image
                     and request.user.profile.use_custom_image
@@ -478,6 +479,10 @@ def upload_character_image(request):
         # 프로필 가져오기
         profile, created = UserProfile.objects.get_or_create(user=request.user)
 
+        # [수정됨] 기존 이미지가 있다면 삭제하여 파일명 중복 시 덮어쓰기 유도
+        if profile.custom_image:
+            profile.custom_image.delete(save=False)
+
         # 이미지 저장
         profile.custom_image = image_file
         # [수정됨] 이미지 업로드 시 커스텀 이미지 사용 설정
@@ -487,7 +492,7 @@ def upload_character_image(request):
         return JsonResponse(
             {
                 "message": "Image uploaded successfully",
-                "image_url": profile.custom_image.url,
+                "image_url": f"{profile.custom_image.url}?v={int(time.time())}",
             }
         )
 
