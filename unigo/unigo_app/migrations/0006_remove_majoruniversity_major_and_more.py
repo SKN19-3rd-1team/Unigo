@@ -4,35 +4,34 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('unigo_app', '0005_userprofile_use_custom_image'),
+        ("unigo_app", "0005_userprofile_use_custom_image"),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='majoruniversity',
-            name='major',
+        migrations.AlterUniqueTogether(
+            name="majoruniversity",
+            unique_together=None,
         ),
         migrations.AlterUniqueTogether(
-            name='majoruniversity',
+            name="university",
             unique_together=None,
         ),
         migrations.RemoveField(
-            model_name='majoruniversity',
-            name='university',
+            model_name="majoruniversity",
+            name="major",
         ),
-        migrations.AlterUniqueTogether(
-            name='university',
-            unique_together=None,
-        ),
-        migrations.DeleteModel(
-            name='Major',
+        migrations.RemoveField(
+            model_name="majoruniversity",
+            name="university",
         ),
         migrations.DeleteModel(
-            name='MajorUniversity',
+            name="Major",
         ),
         migrations.DeleteModel(
-            name='University',
+            name="MajorUniversity",
+        ),
+        migrations.DeleteModel(
+            name="University",
         ),
     ]
