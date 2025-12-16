@@ -130,6 +130,9 @@ docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m b
 # 3. [필수] AI용 카테고리 데이터 적재
 docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.seed_categories"
 
+# 4. [필수] AI용 전공 및 대학 데이터 전체 적재 (RAG 핵심 DB)
+docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python -m backend.db.seed_all"
+
 # 2. 정적 파일 모으기 (CSS/JS 등)
 docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
 
@@ -151,19 +154,24 @@ docker compose -f docker-compose.prod.yml exec web python manage.py createsuperu
 | **DB 위치**   | **Windows Host** (172... or host.docker.internal) | **Docker 내부 컨테이너** (`db` 서비스)             |
 | **명령어**    | `docker compose up ...`                           | `docker compose -f docker-compose.prod.yml up ...` |
 
-## 7. 서버 중지 및 초기화
+## 7. 서버 관리 (재시작, 중지, 초기화)
 
-서버를 종료하거나 완전히 초기화해야 할 때는 다음 명령어를 사용합니다.
+서버 운영 중 자주 사용하는 명령어 모음입니다.
 
 ```bash
-# 단순 중지 및 컨테이너 삭제
+# 1. [재시작] 단순 재부팅 (가장 빠름, 설정 변경 없을 때)
+docker compose -f docker-compose.prod.yml restart web
+
+# 2. [재배포] 코드 변경나 .env 수정 적용 (컨테이너 재생성)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 3. [중지] 서버 내리기 (데이터는 유지됨)
 docker compose -f docker-compose.prod.yml down
 
-# 완전 초기화 (이미지, 볼륨, 컨테이너 모두 삭제)
+# 4. [완전 초기화] 데이터까지 싹 지우고 초기화 (주의!)
+# -v 옵션 때문에 DB 데이터가 모두 삭제됩니다.
 docker compose -f docker-compose.prod.yml down --rmi all -v --remove-orphans
 ```
-
-- `-v` 옵션은 데이터베이스 볼륨까지 삭제하므로 **실서버 데이터가 날아갑니다. 주의하세요!**
 
 ## 8. 💰 요금 폭탄 방지 및 보안 주의사항 (필독)
 
