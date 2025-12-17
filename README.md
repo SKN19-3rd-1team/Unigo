@@ -289,7 +289,7 @@ https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 | **AI / RAG**  | LangChain, LangGraph     | AI 에이전트 및 워크플로우 관리                      |
 | **LLM**       | OpenAI GPT-4o-mini       | 추론 및 자연어 생성                                 |
 | **Vector DB** | Pinecone                 | 고성능 벡터 검색                                    |
-| **Frontend**  | HTML5, CSS3, Vanilla JS  | 반응형 웹 인터페이스                                |
+| **Frontend**  | HTML5, CSS3, JS, Django 5.x  | 반응형 웹 인터페이스                                |
 
 ---
 
@@ -419,12 +419,13 @@ flowchart TD
 
 | 모델명 (Model) | 관리 주체 | 설명 (Description) | 주요 필드 |
 | :--- | :--- | :--- | :--- |
-| **Major** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `name`, `summary`, `salary`, `employment_rate` |
-| **University** | SQLAlchemy | 대학 메타데이터 (대학어디가) | `name`, `campus_name`, `url`, `code` |
-| **MajorUniversity** | SQLAlchemy | 전공-대학 매핑 (Mapping) | `major_id`, `university_id` |
-| **Conversation** | Django | 채팅 세션 정보 | `session_id`, `user_id`, `created_at` |
-| **Message** | Django | 채팅 메시지 내역 | `role`, `content`, `metadata` |
-| **Suggestion** | Django | 온보딩 추천 결과 | `user_id`, `recommended_majors` (JSON) |
+| **MajorCategory** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `id`, `category_name`, `subject_name` |
+| **Major** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `id`, `major_name`, `relate_subject`, `university`, `chat_data`, `employment_rate` |
+| **University** | SQLAlchemy | 대학 메타데이터 (대학어디가) | `id`, `name`, `code` |
+| **MajorRecommendation** | SQLAlchemy | 전공-대학 매핑 (Mapping) | `id`, `user_id`, `onboarding_answers`, `recommended_majors` |
+| **Conversation** | Django | 채팅 세션 정보 | `id`, `user_id`, `session_id`, `title` |
+| **Message** | Django | 채팅 메시지 내역 | `id`, `conversation_id`, `role`, `content`, `metadata` |
+| **UserProfile** | Django | 사용자 프로필 정보 | `id`, `user_id`, `character`, `custom_image` |
 
 > **주의사항**: 두 개의 ORM이 하나의 DB를 공유하므로, 마이그레이션 시 주의가 필요합니다. `User/Chat` 영역은 Django `migrate`로, `AI Data` 영역은 `init_db.py` 등 별도 스크립트로 관리하여 두 영역의 충돌을 방지합니다.
 
@@ -571,5 +572,5 @@ https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 
 - **강지완**: "지난 3차 프로젝트의 한계점이 명확해서 이에 대한 개선점에 집중한 프로젝트였습니다. 특히, 데이터 관련 한계가 있습니다. 단순 크롤링 스니펫만을 활용하여 데이터를 수집하는 과정은 자동화도 힘들고 현재 존재하는 모든 대학에 대한 정보를 얻는것이 거의 불가능하다고 생각했습니다. 커리어넷 API, Adiga 입시 정보 사이트를 활용하여 파편화된 대학 관련 정보를 하나의 도메인으로 통합하는 것을 목표로 잡았습니다. 결과적으로 의도한 100%의 목표를 이루었다고는 할 수 없지만, 어느정도 괜찮은 정보를 제공할 수 있게 되었습니다. Docker, AWS를 활용한 배포가 처음이었는데 배포 하는 과정에서 linux 서버에 대한 이해도를 높일 수 있었습니다."
 - **김진**: "LangGraph의 상태 관리를 통해 에이전트의 흐름을 제어하는 것이 흥미로웠습니다."
-- **마한성**: "사용자 피드백을 반영하여 UI 디테일을 수정하는 과정에서 UX의 중요성을 배웠습니다."
-- **오하원**: "3차에서 안 됐거나 피드백 받은 부분들, 프론트를 react로 다 만들었으나 다시 django로 새로 만들었던 점, 3차 때 2주 정도 크롤링했던 온갖 대학 전공관련 데이터들을 새로운 API 데이터셋으로 적용시킨 점, 원래는 고려하지 않았지만 프로젝트 진행하며 새롭게 추가시킨 점 등, 생각보다 많은 내용들이 "
+- **마한성**: "데이터 정형화의 어려움을 겪으며 '신뢰할 수 있는 데이터 파이프라인'의 중요성을 체감했습니다. 이를 해결하는 과정에서 백엔드를 넘어 프론트엔드(HTML/JS)까지 직접 구현하고, 팀 전체의 아키텍처를 분석하며 서비스의 전체 구조를 다루는 경험을 했습니다."
+- **오하원**: "3차에서 안 됐거나 피드백 받은 부분들, 프론트를 react로 다 만들었으나 다시 django로 새로 만들었던 점, 3차 때 크롤링했던 모든 데이터들을 새로운 오픈데이터셋(API)으로 바뀐 점, 원래는 고려하지 않았지만 프로젝트 진행하며 새롭게 추가시킨 점 등, 많은 내용들이 오고갔음에도 팀원 모두 프로젝트 진행상황을 인지하며 협업했던 점에서 좋은 경험을 쌓았다 생각합니다."
