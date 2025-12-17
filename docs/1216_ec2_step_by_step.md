@@ -124,12 +124,11 @@ docker compose -f docker-compose.prod.yml up -d --build
 # 1. DB 마이그레이션 (테이블 생성 - Django)
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 
-# 2. [필수] AI용 데이터베이스 초기화 (SQLAlchemy)
-# - Django 마이그레이션으로는 SQLAlchemy 테이블이 생성되지 않으므로 별도 스크립트 실행
-docker compose -f docker-compose.prod.yml exec web python backend/db/create_tables.py
-
-# 3. [필수] 기본 카테고리 데이터 적재
-docker compose -f docker-compose.prod.yml exec web python backend/db/seed_categories.py
+# 2. [필수] AI용 데이터베이스 초기화 및 전체 데이터 적재 (All-in-One)
+# - SQLAlchemy 테이블 생성
+# - 전공, 카테고리, 대학 데이터 순차 적재
+# - (주의) WORKDIR이 /app/unigo로 되어 있으므로 /app으로 이동 후 실행해야 함
+docker compose -f docker-compose.prod.yml exec web sh -c "cd /app && python backend/db/seed_all.py"
 
 # 4. 정적 파일 모으기 (CSS/JS 등)
 docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput

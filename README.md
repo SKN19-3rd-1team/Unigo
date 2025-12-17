@@ -3,9 +3,11 @@
 ## 1. 팀 소개
 
 ### 팀명
+
 **Unigo (유니고)** - University Go, 당신을 위한 대학 입시 가이드
 
 ### 멤버
+
 <div align="center">
   <table>
   <tr>
@@ -59,14 +61,13 @@
 
 ### 주요 개선 포인트
 
-| 구분 | 3차 프로젝트 (공신2) | **4차 프로젝트 (Unigo)** | 비고 |
-| :--- | :--- | :--- | :--- |
-| **타겟/범위** | 16개 대학 커리큘럼 중심 (제한적) | **전국 대학 및 전체 전공 데이터** (확장) | 입시생 전체로 타겟 확장 |
-| **데이터 원천** | 대학별 크롤링 (비정형 데이터) | **공공 데이터 API & MySQL** (정제된 데이터) | 데이터 신뢰성 및 관리 효율 증대 |
-| **핵심 기술** | **ReAct Agent & LangGraph** (추론형 AI) | **ReAct Agent & LangGraph** (추론형 AI) | 일부 tool 변경 |
-| **플랫폼** | Streamlit (프로토타입) | **Django Web Application** (상용화 수준) | 회원가입, 커스텀 UI/UX 구현 가능 |
-| **UX 전략** | 기능 중심 Q&A | **페르소나(캐릭터) & 온보딩** | 사용자 몰입감 및 친밀도 향상 |
-
+| 구분            | 3차 프로젝트 (공신2)                    | **4차 프로젝트 (Unigo)**                    | 비고                             |
+| :-------------- | :-------------------------------------- | :------------------------------------------ | :------------------------------- |
+| **타겟/범위**   | 16개 대학 커리큘럼 중심 (제한적)        | **전국 대학 및 전체 전공 데이터** (확장)    | 입시생 전체로 타겟 확장          |
+| **데이터 원천** | 대학별 크롤링 (비정형 데이터)           | **공공 데이터 API & MySQL** (정제된 데이터) | 데이터 신뢰성 및 관리 효율 증대  |
+| **핵심 기술**   | **ReAct Agent & LangGraph** (추론형 AI) | **ReAct Agent & LangGraph** (추론형 AI)     | 일부 tool 변경                   |
+| **플랫폼**      | Streamlit (프로토타입)                  | **Django Web Application** (상용화 수준)    | 회원가입, 커스텀 UI/UX 구현 가능 |
+| **UX 전략**     | 기능 중심 Q&A                           | **페르소나(캐릭터) & 온보딩**               | 사용자 몰입감 및 친밀도 향상     |
 
 ### 개선 배경 및 원인
 
@@ -103,23 +104,25 @@
 
 #### 핵심 기능 (Tools) 구현
 
-| 기능(Tool)                       | 설명                             | 기술 스택                                          |
-| :------------------------------- | :------------------------------- | :------------------------------------------------- |
-| `list_departments`               | 키워드/카테고리 기반 학과 추천   | **Pinecone** (Vector) + **MySQL**                  |
-| `get_universities_by_department` | 특정 전공 개설 대학 및 학과 매칭 | **Pinecone** + **MySQL** |
-| `get_major_career_info`          | 진로, 연봉, 취업률 등 상세 정보  | **MySQL** (CareerNet Data)                         |
-| `get_university_admission_info`  | 대학별 입시 요강 페이지 연결     | **MySQL** (Adiga Data)                             |
+| 기능(Tool)                       | 설명                             | 기술 스택                         |
+| :------------------------------- | :------------------------------- | :-------------------------------- |
+| `list_departments`               | 키워드/카테고리 기반 학과 추천   | **Pinecone** (Vector) + **MySQL** |
+| `get_universities_by_department` | 특정 전공 개설 대학 및 학과 매칭 | **Pinecone** + **MySQL**          |
+| `get_major_career_info`          | 진로, 연봉, 취업률 등 상세 정보  | **MySQL** (CareerNet Data)        |
+| `get_university_admission_info`  | 대학별 입시 요강 페이지 연결     | **MySQL** (Adiga Data)            |
 
 <br>
 
 ### 데이터 및 전처리 과정
 
 #### 데이터 소스 (Data Sources)
+
 - **major_detail.json(커리어넷)**: 전공 상세 정보 (학과명, 요약, 흥미, 적성, 진출 분야, 관련 직업, 관련 자격증, 주요 교과목, 졸업 후 연봉, 취업률, 입학 경쟁률, 개설 대학 목록 등)
 - **university_data_cleaned.json(대학어디가)**: 대학별 정보 및 주소
 - **major_categories.json(커리어넷)**: 대분류 학과와 그에 해당하는 학과들 나열
 
 #### 전처리 파이프라인 (Processing Pipeline)
+
 1. **Data Ingestion (데이터 수집 및 로드)**
    - 커리어넷 등에서 수집된 대용량 JSON 파일 로드 및 원본 데이터의 복잡한 중첩 구조(`dataSearch > content`) 파싱
 2. **Dual-Store Strategy (이원화 저장 전략)**
@@ -147,17 +150,21 @@
 ## 3. 프로젝트 개요
 
 ### 프로젝트 명
+
 **Unigo (AI 기반 대학 전공 추천 및 입시 상담 챗봇)**
 
 ### 프로젝트 소개
+
 LLM(Large Language Model)과 RAG(Retrieval Augmented Generation) 기술을 활용하여 수험생과 진로를 고민하는 학생들에게 **개인 맞춤형 전공 추천**과 **정확한 입시 정보**를 제공하는 대화형 AI 서비스입니다.
 
 ### 프로젝트 필요성 (배경)
+
 - **정보의 비대칭성**: 대학 입시 정보는 **방대하고 파편화**되어 있어 학생들이 자신에게 맞는 정보를 찾기 어렵습니다.
 - **맞춤형 상담의 부재**: 기존의 커리어넷/워크넷 등은 정적인 정보만 제공하며, **개인의 성향을 고려한 심층적인 대화형 상담이 부족합니다**.
 - **비용 문제**: 사설 입시 컨설팅은 **고비용**으로 접근성이 낮습니다. 누구나 쉽게 접근 가능한 AI 멘토가 필요합니다.
 
 ### 프로젝트 목표
+
 1. **정확성**: Pinecone 벡터 DB와 RAG를 통해 Hallucination을 최소화한 신뢰성 있는 정보 제공
 2. **개인화**: LangGraph 기반의 ReAct 에이전트를 통해 사용자의 의도를 파악하고 다단계 추론을 통한 맞춤 답변 제공
 3. **편의성**: 직관적인 채팅 인터페이스와 사용자 친화적인 온보딩 프로세스 구축
@@ -236,22 +243,25 @@ Unigo/
 ---
 
 ## 5. 요구사항 명세서
+
 <img width="1176" height="791" alt="Image" src="https://github.com/user-attachments/assets/f78a271f-b81e-422d-bdd2-706b0a70c1cb" />
 https://www.notion.so/2c40413479c480458e42ebb6e116eef1
 
 ---
 
 ## 6. 화면 정의서
+
 <img width="1171" height="697" alt="Image" src="https://github.com/user-attachments/assets/aa9b4107-e7db-4636-9e1d-0bf08622d1ee" />
 https://www.figma.com/design/EQooVBPUshPncXDORTfJhB/%EC%9C%A0%EB%8B%88%EA%B3%A0?node-id=0-1&p=f&t=aAT9BriN4yCgShcK-0
 
 ---
+
 ## 7. WBS
+
 <img width="1726" height="854" alt="image" src="https://github.com/user-attachments/assets/a2aa6bb0-6be0-43e4-9c00-4f7ee46d44e9" />
 https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ---
-
 
 ## 8. 주요 기능
 
@@ -282,14 +292,14 @@ https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ## 9. 기술 스택
 
-| 분류          | 기술                     | 비고                                                |
-| ------------- | ------------------------ | --------------------------------------------------- |
-| **Backend**   | Python 3.11+, Django 5.x | 웹 프레임워크 및 API                                |
-| **Data**      | MySQL                    | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
-| **AI / RAG**  | LangChain, LangGraph     | AI 에이전트 및 워크플로우 관리                      |
-| **LLM**       | OpenAI GPT-4o-mini       | 추론 및 자연어 생성                                 |
-| **Vector DB** | Pinecone                 | 고성능 벡터 검색                                    |
-| **Frontend**  | HTML5, CSS3, JS, Django 5.x  | 반응형 웹 인터페이스                                |
+| 분류          | 기술                        | 비고                                                |
+| ------------- | --------------------------- | --------------------------------------------------- |
+| **Backend**   | Python 3.11+, Django 5.x    | 웹 프레임워크 및 API                                |
+| **Data**      | MySQL                       | 관계형 데이터베이스 (전공/대학 정보, 사용자 데이터) |
+| **AI / RAG**  | LangChain, LangGraph        | AI 에이전트 및 워크플로우 관리                      |
+| **LLM**       | OpenAI GPT-4o-mini          | 추론 및 자연어 생성                                 |
+| **Vector DB** | Pinecone                    | 고성능 벡터 검색                                    |
+| **Frontend**  | HTML5, CSS3, JS, Django 5.x | 반응형 웹 인터페이스                                |
 
 ---
 
@@ -361,23 +371,25 @@ flowchart TD
 이 프로젝트는 일반적인 웹 애플리케이션 프레임워크인 **Django**와 파이썬 데이터 생태계의 표준 ORM인 **SQLAlchemy**를 동시에 사용하는 하이브리드 구조를 채택하고 있습니다.
 
 - **Django**: 웹 서비스의 '뼈대'를 담당
-    - **역할**: 사용자 인증(Auth), 관리자 페이지(Admin), 정적 파일 관리, 엔드포인트 라우팅(Views).
-    - **특징**: 생산성이 높고 보안 기능이 내장되어 있어 웹 서비스 구축에 효율적입니다.
+  - **역할**: 사용자 인증(Auth), 관리자 페이지(Admin), 정적 파일 관리, 엔드포인트 라우팅(Views).
+  - **특징**: 생산성이 높고 보안 기능이 내장되어 있어 웹 서비스 구축에 효율적입니다.
 - **SQLAlchemy**: AI/데이터 서비스의 '심장'을 담당
-    - **역할**: RAG(검색 증강 생성)를 위한 벡터 메타데이터 관리, 대용량 데이터(전공, 대학 정보) 적재 및 조회, LangChain 등 AI 라이브러리와의 연동.
-    - **위치**: `backend/db`, `backend/rag`, `backend/main.py` 등 AI 로직이 집중된 모듈에서 주로 사용됨.
+  - **역할**: RAG(검색 증강 생성)를 위한 벡터 메타데이터 관리, 대용량 데이터(전공, 대학 정보) 적재 및 조회, LangChain 등 AI 라이브러리와의 연동.
+  - **위치**: `backend/db`, `backend/rag`, `backend/main.py` 등 AI 로직이 집중된 모듈에서 주로 사용됨.
 
 ### 3) SQLAlchemy를 사용이유
 
 단순히 Django ORM만으로도 데이터베이스 조작이 가능함에도 불구하고, SQLAlchemy를 별도로 도입한 데에는 다음과 같은 강력한 기술적 이유가 존재합니다.
 
 1.  **AI/Data 생태계와의 호환성 (Ecosystem Compatibility)**
-    -   LangChain 및 대부분의 최신 AI 라이브러리(LlamaIndex 등)는 RAG 파이프라인 구축 시 **SQLAlchemy를 사실상의 표준(De-facto Standard)**으로 지원합니다.
-    -   Django ORM은 프레임워크에 강하게 결합되어 있어 독립적인 AI 모듈에서 사용하기 무겁고 설정이 복잡한 반면, SQLAlchemy는 가볍고 독립적으로 동작하여 AI 모듈과의 결합이 자연스럽습니다.
+
+    - LangChain 및 대부분의 최신 AI 라이브러리(LlamaIndex 등)는 RAG 파이프라인 구축 시 **SQLAlchemy를 사실상의 표준(De-facto Standard)**으로 지원합니다.
+    - Django ORM은 프레임워크에 강하게 결합되어 있어 독립적인 AI 모듈에서 사용하기 무겁고 설정이 복잡한 반면, SQLAlchemy는 가볍고 독립적으로 동작하여 AI 모듈과의 결합이 자연스럽습니다.
 
 2.  **성능 및 미세 제어 (Performance & Fine-grained Control)**
-    -   **Bulk Operation**: `seed_all.py` 등 대용량 데이터 적재 시, SQLAlchemy Core를 사용하여 Raw SQL 수준의 성능을 내면서도 파이썬 객체로 관리할 수 있습니다.
-    -   **Connection Pooling**: AI 모델 서빙과 같이 리소스 관리가 중요한 환경에서 `pool_pre_ping=True`, `pool_recycle=3600` 등 상세한 커넥션 풀 설정을 통해 DB 연결 안정성을 확보했습니다.
+
+    - **Bulk Operation**: `seed_all.py` 등 대용량 데이터 적재 시, SQLAlchemy Core를 사용하여 Raw SQL 수준의 성능을 내면서도 파이썬 객체로 관리할 수 있습니다.
+    - **Connection Pooling**: AI 모델 서빙과 같이 리소스 관리가 중요한 환경에서 `pool_pre_ping=True`, `pool_recycle=3600` 등 상세한 커넥션 풀 설정을 통해 DB 연결 안정성을 확보했습니다.
 
 3.  **복잡한 데이터 타입 처리**: `Major` 모델의 `LONGTEXT` 컬럼에 JSON 데이터를 저장하는 등 비정규화된 패턴이나 커스텀 타입을 매핑할 때 훨씬 유연한 기능을 제공합니다.
 
@@ -417,19 +429,20 @@ flowchart TD
 
 **주요 테이블 관계도**
 
-| 모델명 (Model) | 관리 주체 | 설명 (Description) | 주요 필드 |
-| :--- | :--- | :--- | :--- |
-| **MajorCategory** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `id`, `category_name`, `subject_name` |
-| **Major** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `id`, `major_name`, `relate_subject`, `university`, `chat_data`, `employment_rate` |
-| **University** | SQLAlchemy | 대학 메타데이터 (대학어디가) | `id`, `name`, `code` |
-| **MajorRecommendation** | SQLAlchemy | 전공-대학 매핑 (Mapping) | `id`, `user_id`, `onboarding_answers`, `recommended_majors` |
-| **Conversation** | Django | 채팅 세션 정보 | `id`, `user_id`, `session_id`, `title` |
-| **Message** | Django | 채팅 메시지 내역 | `id`, `conversation_id`, `role`, `content`, `metadata` |
-| **UserProfile** | Django | 사용자 프로필 정보 | `id`, `user_id`, `character`, `custom_image` |
+| 모델명 (Model)          | 관리 주체  | 설명 (Description)           | 주요 필드                                                                          |
+| :---------------------- | :--------- | :--------------------------- | :--------------------------------------------------------------------------------- |
+| **MajorCategory**       | SQLAlchemy | 전공 상세 정보 (커리어넷)    | `id`, `category_name`, `subject_name`                                              |
+| **Major**               | SQLAlchemy | 전공 상세 정보 (커리어넷)    | `id`, `major_name`, `relate_subject`, `university`, `chat_data`, `employment_rate` |
+| **University**          | SQLAlchemy | 대학 메타데이터 (대학어디가) | `id`, `name`, `code`                                                               |
+| **MajorRecommendation** | SQLAlchemy | 전공-대학 매핑 (Mapping)     | `id`, `user_id`, `onboarding_answers`, `recommended_majors`                        |
+| **Conversation**        | Django     | 채팅 세션 정보               | `id`, `user_id`, `session_id`, `title`                                             |
+| **Message**             | Django     | 채팅 메시지 내역             | `id`, `conversation_id`, `role`, `content`, `metadata`                             |
+| **UserProfile**         | Django     | 사용자 프로필 정보           | `id`, `user_id`, `character`, `custom_image`                                       |
 
 > **주의사항**: 두 개의 ORM이 하나의 DB를 공유하므로, 마이그레이션 시 주의가 필요합니다. `User/Chat` 영역은 Django `migrate`로, `AI Data` 영역은 `init_db.py` 등 별도 스크립트로 관리하여 두 영역의 충돌을 방지합니다.
 
 #### 벡터 데이터베이스 (Pinecone)
+
 - **`major_categories`**: 광범위한 매칭을 위한 표준 전공명 및 카테고리 임베딩.
 - **`university_majors`**: 세밀한 의미 기반 검색을 위한 "대학명 + 학과명" 쌍의 임베딩.
 
@@ -514,12 +527,14 @@ erDiagram
 ## 11. 배포 과정 (Deployment)
 
 ### 배포 환경
+
 - **Cloud Platform**: AWS EC2 / Azure VM
 - **Web Server**: Nginx (Reverse Proxy)
 - **WAS**: Gunicorn
 - **Database**: MySQL, Pinecone (Serverless)
 
 ### 배포 파이프라인
+
 1. **Source Control**: GitHub를 통한 코드 형상 관리
 2. **Build**: `requirements.txt` 의존성 설치 및 정적 파일(`collectstatic`) 빌드
 3. **Run**: Gunicorn을 사용하여 Django 애플리케이션 실행, Nginx가 80포트로 들어오는 요청을 Gunicorn 소켓으로 포워딩
@@ -527,6 +542,7 @@ erDiagram
 ---
 
 ## 12. 트러블 슈팅 (Troubleshooting)
+
 <img width="1326" height="892" alt="Image" src="https://github.com/user-attachments/assets/cee685b0-50a0-4c9e-b9ad-db290668858e" />
 https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 
@@ -535,27 +551,34 @@ https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 ## 13. 테스트 계획 및 결과
 
 ### 테스트 계획
+
 - **단위 테스트**: 각 LangChain Tool(검색, 조회)의 정상 동작 여부 검증
 - **통합 테스트**: 사용자 질문 입력부터 최종 답변 생성까지의 전체 파이프라인 테스트
 - **UI 테스트**: 반응형 레이아웃 및 크로스 브라우징 테스트 (Chrome, Edge)
 
 ### 테스트 결과
+
 - **정확도**: 전공 추천 시나리오 50개 중 45개 이상 적절한 학과 추천 (정확도 90% 달성)
 - **응답성**: 평균 응답 시간 2.5초 기록
 - **안정성**: 예외 상황(데이터 없음 등)에 대한 Fallback 메시지 정상 출력 확인
+
+| [Notion](https://www.notion.so/2cc0413479c480fab4b0f122297a40ea)
 
 ---
 
 ## 15. 수행결과 (시연)
 
 ### 1) 로그인 및 회원가입
+
 - 이메일/닉네임 중복 체크 및 보안 로그인
 
 ### 2) 온보딩 (성향 분석)
+
 - **시나리오**: '추천 시작' 키워드로 시작 -> 7가지 성향 질문 응답 -> 가중치 기반 Top 5 학과 추천
 - **결과**: 사용자의 관심사(예: "분석하는 일, 수학, 헬스")를 반영한 학과 추천 제공
 
 ### 3) 메인 채팅 & Tool Calling
+
 - **시나리오 1 (학과 검색)**: "인공지능 관련된 학과들 다 알려줘" -> `list_departments` 호출
 - **시나리오 2 (대학 검색)**: "연세대 컴퓨터 공학과 있어?" -> `get_universities_by_department` 호출
 - **시나리오 3 (진로 정보)**: "컴퓨터공학과 졸업하면 연봉 어때?" -> `get_major_career_info` 호출
@@ -563,6 +586,7 @@ https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 - **시나리오 5 (검색 도움)**: "사용법좀 알려줘." (잡담/검색 실패) -> `get_search_help` 호출
 
 ### 4) 설정 및 개인화
+
 - 캐릭터 선택(토끼, 거북이 등) 및 커스텀 이미지 업로드
 - "내 관심사 기억해?" -> 저장된 온보딩 정보 기반 답변 확인
 
@@ -571,6 +595,6 @@ https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 ## 16. 한 줄 회고
 
 - **강지완**: "지난 3차 프로젝트의 한계점이 명확해서 이에 대한 개선점에 집중한 프로젝트였습니다. 특히, 데이터 관련 한계가 있습니다. 단순 크롤링 스니펫만을 활용하여 데이터를 수집하는 과정은 자동화도 힘들고 현재 존재하는 모든 대학에 대한 정보를 얻는것이 거의 불가능하다고 생각했습니다. 커리어넷 API, Adiga 입시 정보 사이트를 활용하여 파편화된 대학 관련 정보를 하나의 도메인으로 통합하는 것을 목표로 잡았습니다. 결과적으로 의도한 100%의 목표를 이루었다고는 할 수 없지만, 어느정도 괜찮은 정보를 제공할 수 있게 되었습니다. Docker, AWS를 활용한 배포가 처음이었는데 배포 하는 과정에서 linux 서버에 대한 이해도를 높일 수 있었습니다."
-- **김진**: "LangGraph의 상태 관리를 통해 에이전트의 흐름을 제어하는 것이 흥미로웠습니다."
+- **김진**: "이번 프로젝트를 진행하며 단순한 정보 나열이 아닌 사용자의 질문 의도와 흐름을 고려한 응답 구조의 중요성을 느꼈다. 커리어넷 및 전국 대학 학과 데이터를 새로 수집하여 전체 학과 정보를 제공함으로써 정보 제공의 신뢰도를 높였다. 또한 툴 호출 결과를 프롬프트로 재구성하고 요약 기능을 적용함으로써 정보 과다로 인한 혼란을 줄이고 사용자 중심의 대화 경험을 구현했다. 이 과정을 통해 기술 구현뿐만 아니라 사용자 경험을 중심으로 사고하려는 태도를 기를 수 있었다."
 - **마한성**: "데이터 정형화의 어려움을 겪으며 '신뢰할 수 있는 데이터 파이프라인'의 중요성을 체감했습니다. 이를 해결하는 과정에서 백엔드를 넘어 프론트엔드(HTML/JS)까지 직접 구현하고, 팀 전체의 아키텍처를 분석하며 서비스의 전체 구조를 다루는 경험을 했습니다."
 - **오하원**: "3차에서 안 됐거나 피드백 받은 부분들, 프론트를 react로 다 만들었으나 다시 django로 새로 만들었던 점, 3차 때 크롤링했던 모든 데이터들을 새로운 오픈데이터셋(API)으로 바뀐 점, 원래는 고려하지 않았지만 프로젝트 진행하며 새롭게 추가시킨 점 등, 많은 내용들이 오고갔음에도 팀원 모두 프로젝트 진행상황을 인지하며 협업했던 점에서 좋은 경험을 쌓았다 생각합니다."
