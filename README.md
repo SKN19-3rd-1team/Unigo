@@ -235,15 +235,15 @@ Unigo/
 
 ---
 
-## 5. WBS
+## 5. 요구사항 명세서
 <img width="1176" height="791" alt="Image" src="https://github.com/user-attachments/assets/f78a271f-b81e-422d-bdd2-706b0a70c1cb" />
-[https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95](https://www.notion.so/2c40413479c480458e42ebb6e116eef1)
+https://www.notion.so/2c40413479c480458e42ebb6e116eef1
 
 ---
 
-## 6. WBS
-<img width="1726" height="854" alt="image" src="https://github.com/user-attachments/assets/a2aa6bb0-6be0-43e4-9c00-4f7ee46d44e9" />
-https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
+## 6. 화면 정의서
+<img width="1171" height="697" alt="Image" src="https://github.com/user-attachments/assets/aa9b4107-e7db-4636-9e1d-0bf08622d1ee" />
+https://www.figma.com/design/EQooVBPUshPncXDORTfJhB/%EC%9C%A0%EB%8B%88%EA%B3%A0?node-id=0-1&p=f&t=aAT9BriN4yCgShcK-0
 
 ---
 ## 7. WBS
