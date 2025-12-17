@@ -1,4 +1,4 @@
-# SK네트웍스 Family AI 캠프 19기 3차 프로젝트
+# SK네트웍스 Family AI 캠프 19기 4차 프로젝트
 
 ## 1. 팀 소개
 
@@ -236,13 +236,24 @@ Unigo/
 ---
 
 ## 5. WBS
+<img width="1176" height="791" alt="Image" src="https://github.com/user-attachments/assets/f78a271f-b81e-422d-bdd2-706b0a70c1cb" />
+[https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95](https://www.notion.so/2c40413479c480458e42ebb6e116eef1)
+
+---
+
+## 6. WBS
+<img width="1726" height="854" alt="image" src="https://github.com/user-attachments/assets/a2aa6bb0-6be0-43e4-9c00-4f7ee46d44e9" />
+https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
+
+---
+## 7. WBS
 <img width="1726" height="854" alt="image" src="https://github.com/user-attachments/assets/a2aa6bb0-6be0-43e4-9c00-4f7ee46d44e9" />
 https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ---
 
 
-## 6. 주요 기능
+## 8. 주요 기능
 
 ### 1) 🤖 RAG 기반 AI 멘토
 
@@ -269,7 +280,7 @@ https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ---
 
-## 7. 기술 스택
+## 9. 기술 스택
 
 | 분류          | 기술                     | 비고                                                |
 | ------------- | ------------------------ | --------------------------------------------------- |
@@ -282,7 +293,7 @@ https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ---
 
-## 8. 시스템 아키텍처 & 기술적 전략 (System Architecture & Technical Strategy)
+## 10. 시스템 아키텍처 & 기술적 전략 (System Architecture & Technical Strategy)
 
 ### 1) 시스템 개요 (System Overview)
 
@@ -356,7 +367,7 @@ flowchart TD
     - **역할**: RAG(검색 증강 생성)를 위한 벡터 메타데이터 관리, 대용량 데이터(전공, 대학 정보) 적재 및 조회, LangChain 등 AI 라이브러리와의 연동.
     - **위치**: `backend/db`, `backend/rag`, `backend/main.py` 등 AI 로직이 집중된 모듈에서 주로 사용됨.
 
-### 3) 핵심 질문: 왜 굳이 SQLAlchemy를 사용해야 했는가? (Why SQLAlchemy?)
+### 3) SQLAlchemy를 사용이유
 
 단순히 Django ORM만으로도 데이터베이스 조작이 가능함에도 불구하고, SQLAlchemy를 별도로 도입한 데에는 다음과 같은 강력한 기술적 이유가 존재합니다.
 
@@ -368,11 +379,7 @@ flowchart TD
     -   **Bulk Operation**: `seed_all.py` 등 대용량 데이터 적재 시, SQLAlchemy Core를 사용하여 Raw SQL 수준의 성능을 내면서도 파이썬 객체로 관리할 수 있습니다.
     -   **Connection Pooling**: AI 모델 서빙과 같이 리소스 관리가 중요한 환경에서 `pool_pre_ping=True`, `pool_recycle=3600` 등 상세한 커넥션 풀 설정을 통해 DB 연결 안정성을 확보했습니다.
 
-3.  **아키텍처의 유연성 (Architecture Decoupling)**
-    -   현재는 웹(Django)과 AI(Logic)가 하나의 서버에 있지만, 향후 AI 기능이 고도화되어 **Microservice(예: FastAPI)**로 분리될 가능성을 대비했습니다.
-    -   AI 로직을 SQLAlchemy로 작성해 두었기 때문에, 나중에 Django 의존성을 걷어내고 해당 모듈만 떼어내어 독립 서버로 이전하기(Migration)가 매우 수월합니다.
-
-4.  **복잡한 데이터 타입 처리**: `Major` 모델의 `LONGTEXT` 컬럼에 JSON 데이터를 저장하는 등 비정규화된 패턴이나 커스텀 타입을 매핑할 때 훨씬 유연한 기능을 제공합니다.
+3.  **복잡한 데이터 타입 처리**: `Major` 모델의 `LONGTEXT` 컬럼에 JSON 데이터를 저장하는 등 비정규화된 패턴이나 커스텀 타입을 매핑할 때 훨씬 유연한 기능을 제공합니다.
 
 ### 4) 상세 분석: Django와 SQLAlchemy의 공존 (Co-existence Strategy)
 
@@ -503,7 +510,7 @@ erDiagram
 
 ---
 
-## 9. 배포 과정 (Deployment)
+## 11. 배포 과정 (Deployment)
 
 ### 배포 환경
 - **Cloud Platform**: AWS EC2 / Azure VM
@@ -518,7 +525,7 @@ erDiagram
 
 ---
 
-## 10. 진행 과정 중 프로그램 개선 노력
+## 12. 진행 과정 중 프로그램 개선 노력
 
 ### 1) AI 모델 최적화 (Hallucination Control)
 - **Problem**: LLM이 없는 대학 정보(예: "한양대학교 천문학과")를 그럴듯하게 지어내는 환각 현상 발생.
@@ -538,7 +545,7 @@ erDiagram
 
 ---
 
-## 11. 트러블 슈팅 (Troubleshooting)
+## 13. 트러블 슈팅 (Troubleshooting)
 
 **Case 1: 이미지 업로드 갱신 불가 현상 (Image Overwrite)**
 - **Problem**: Django의 기본 파일 저장 방식은 파일명 중복 시 자동으로 이름을 변경(`image_1.png`)하기 때문에, 사용자가 같은 파일명으로 이미지를 수정해도 반영되지 않는 문제가 있었습니다. 또한 브라우저의 강력한 캐싱으로 인해 변경 후에도 이전 이미지가 계속 표시되었습니다.
@@ -554,7 +561,7 @@ erDiagram
 
 ---
 
-## 12. 테스트 계획 및 결과
+## 14. 테스트 계획 및 결과
 
 ### 테스트 계획
 - **단위 테스트**: 각 LangChain Tool(검색, 조회)의 정상 동작 여부 검증
@@ -568,7 +575,7 @@ erDiagram
 
 ---
 
-## 13. 수행결과 (시연)
+## 15. 수행결과 (시연)
 
 ### 1) 로그인 및 회원가입
 - 이메일/닉네임 중복 체크 및 보안 로그인
@@ -590,7 +597,7 @@ erDiagram
 
 ---
 
-## 14. 한 줄 회고
+## 16. 한 줄 회고
 
 - **강지완**: "RAG 파이프라인을 구축하며 데이터 전처리의 중요성을 뼈저리게 느꼈습니다."
 - **김진**: "LangGraph의 상태 관리를 통해 에이전트의 흐름을 제어하는 것이 흥미로웠습니다."
