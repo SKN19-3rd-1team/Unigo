@@ -506,10 +506,10 @@ erDiagram
 ## 9. 배포 과정 (Deployment)
 
 ### 배포 환경
-- **Cloud Platform**: AWS EC2 / Azure VM (예시)
+- **Cloud Platform**: AWS EC2 / Azure VM
 - **Web Server**: Nginx (Reverse Proxy)
 - **WAS**: Gunicorn
-- **Database**: AWS RDS (MySQL), Pinecone (Serverless)
+- **Database**: MySQL, Pinecone (Serverless)
 
 ### 배포 파이프라인
 1. **Source Control**: GitHub를 통한 코드 형상 관리
@@ -578,11 +578,11 @@ erDiagram
 - **결과**: 사용자의 관심사(예: "분석하는 일, 수학, 헬스")를 반영한 학과 추천 제공
 
 ### 3) 메인 채팅 & Tool Calling
-- **시나리오 1 (학과 검색)**: "코딩에 관심 있어. 무슨 과 가야 해?" -> `list_departments` 호출
-- **시나리오 2 (대학 검색)**: "해당 학과가 있는 대학교 알려줘." -> `get_universities_by_department` 호출
+- **시나리오 1 (학과 검색)**: "인공지능 관련된 학과들 다 알려줘" -> `list_departments` 호출
+- **시나리오 2 (대학 검색)**: "연세대 컴퓨터 공학과 있어?" -> `get_universities_by_department` 호출
 - **시나리오 3 (진로 정보)**: "컴퓨터공학과 졸업하면 연봉 어때?" -> `get_major_career_info` 호출
 - **시나리오 4 (입시 정보)**: "서울대학교 입시 정보 알려줘." -> `get_university_admission_info` 호출
-- **시나리오 5 (검색 도움)**: "거북이가 귀여워." (잡담/검색 실패) -> `get_search_help` 호출
+- **시나리오 5 (검색 도움)**: "사용법좀 알려줘." (잡담/검색 실패) -> `get_search_help` 호출
 
 ### 4) 설정 및 개인화
 - 캐릭터 선택(토끼, 거북이 등) 및 커스텀 이미지 업로드
