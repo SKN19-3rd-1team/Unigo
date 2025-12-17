@@ -51,7 +51,7 @@
 
 ---
 
-## 2. 프로젝트 변경 사항 (Evolution)
+## 2. 프로젝트 변경 사항
 
 > **"단순 정보 검색에서 개인화된 입시 멘토링 서비스로"**
 >
@@ -63,7 +63,7 @@
 | :--- | :--- | :--- | :--- |
 | **타겟/범위** | 16개 대학 커리큘럼 중심 (제한적) | **전국 대학 및 전체 전공 데이터** (확장) | 입시생 전체로 타겟 확장 |
 | **데이터 원천** | 대학별 크롤링 (비정형 데이터) | **공공 데이터 API & MySQL** (정제된 데이터) | 데이터 신뢰성 및 관리 효율 증대 |
-| **핵심 기술** | 단순 검색 (Retriever) | **ReAct Agent & LangGraph** (추론형 AI) | 복합 질문 해결 능력 강화 |
+| **핵심 기술** | **ReAct Agent & LangGraph** (추론형 AI) | **ReAct Agent & LangGraph** (추론형 AI) | 일부 tool 변경 |
 | **플랫폼** | Streamlit (프로토타입) | **Django Web Application** (상용화 수준) | 회원가입, 커스텀 UI/UX 구현 가능 |
 | **UX 전략** | 기능 중심 Q&A | **페르소나(캐릭터) & 온보딩** | 사용자 몰입감 및 친밀도 향상 |
 
@@ -115,7 +115,7 @@
 ### 데이터 및 전처리 과정
 
 #### 데이터 소스 (Data Sources)
-- **major_detail.json(커리어넷)**: 학과 정보(요약, 졸업 후 진로, 관련 자격증, 취업률 등), 주요 교과목 정보, 학교명, 지역 등
+- **major_detail.json(커리어넷)**: 전공 상세 정보 (학과명, 요약, 흥미, 적성, 진출 분야, 관련 직업, 관련 자격증, 주요 교과목, 졸업 후 연봉, 취업률, 입학 경쟁률, 개설 대학 목록 등)
 - **university_data_cleaned.json(대학어디가)**: 대학별 정보 및 주소
 - **major_categories.json(커리어넷)**: 대분류 학과와 그에 해당하는 학과들 나열
 
@@ -139,8 +139,8 @@
 
 #### 도입 효과
 
-- **☁️ Stateless 아키텍처**: 백엔드 컨테이너를 언제든 껐다 켜도 데이터 동기화 문제 없음 (Docker Compose 구성 단순화).
-- **💻 개발 편의성**: 팀원 간 로컬 환경(OS, 디스크 경로 등) 차이 없이 동일한 API 키로 동일한 검색 결과 보장.
+- **Stateless 아키텍처**: 백엔드 컨테이너를 언제든 껐다 켜도 데이터 동기화 문제 없음 (Docker Compose 구성 단순화).
+- **개발 편의성**: 팀원 간 로컬 환경(OS, 디스크 경로 등) 차이 없이 동일한 API 키로 동일한 검색 결과 보장.
 
 ---
 
@@ -290,20 +290,59 @@ https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ```mermaid
 flowchart TD
-    Client["Client (Web/Mobile)"] -->|HTTP| Nginx["Nginx (Reverse Proxy)"]
-    Nginx -->|Proxy Pass| Gunicorn["Gunicorn (WSGI Server)"]
-    Gunicorn --> Django["Django Application (Unigo)"]
+    %% 1. AWS 환경 (서버)
+    subgraph AWS ["AWS EC2 Server"]
+    %% 2. Docker 환경
+    subgraph Docker ["Docker Environment"]
+        direction TB
 
-    subgraph Backend ["Django Backend"]
-        Django -->|View Logic| UnigoApp["unigo_app (Chat/Auth)"]
-        Django -->|AI Logic| AIBackend["backend (LangGraph)"]
+        subgraph Frontend ["Frontend"]
+            Client["Client (Web)"]
+        end
+
+        Nginx["Nginx (Proxy)"]
+        Gunicorn["Gunicorn (WSGI Server)"]
+
+        subgraph Backend ["Django Backend"]
+            Django["Django Application (Unigo)"]
+
+            %% Django 내부 로직들
+            UnigoApp["unigo_app (Chat/Auth)"]
+            AIBackend["backend (LangGraph)"]
+            MySQL[("MySQL Database")]
+        end
+
+
+    end
     end
 
-    subgraph Data ["Data Layer"]
-        Django -->|ORM| MySQL[("MySQL Database")]
-        AIBackend -->|Vector Search| Pinecone[("Pinecone Vector DB")]
-        AIBackend -->|LLM API| OpenAI["OpenAI API"]
+    %% 3. 외부 클라우드/API 서비스
+    subgraph CloudServices ["External Cloud Services"]
+        Pinecone[("Pinecone Vector DB")]
+        OpenAI["OpenAI API"]
     end
+
+
+    %% 연결 관계 정의
+    Client -->|HTTP| Nginx
+    Nginx -->|Proxy Pass| Gunicorn
+    Gunicorn --> Django
+
+    %% Backend 내부 흐름
+    Django -->|View Logic| UnigoApp
+    Django -->|AI Logic call| AIBackend
+    Django -->|ORM| MySQL
+
+    %% AI 로직의 외부 통신
+    AIBackend -->|Vector Search| Pinecone
+    AIBackend -->|LLM API| OpenAI
+
+    %% 스타일링
+    classDef docker fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Docker docker;
+    class Backend backend;
 ```
 
 ### 2) 아키텍처 분석: Hybrid Approach (Django + SQLAlchemy)
@@ -438,9 +477,9 @@ erDiagram
     %% 2. AI Data Cluster (SQLAlchemy Managed)
     %% ** 실질적인 AI 데이터가 저장되는 곳 **
     %% ==========================================
-    MAJOR_CATEGORY |{--|| SA_MAJOR : "groups (JSON list)"
-    
-    SA_MAJOR {
+    MAJOR_CATEGORY |{--|| MAJOR : "groups (JSON list)"
+
+    MAJOR {
         int id PK
         string major_name "전공명"
         json relate_subject
@@ -448,14 +487,14 @@ erDiagram
         json chart_data
         float employment_rate
     }
-    
-    SA_MAJOR_CATEGORY {
+
+    MAJOR_CATEGORY {
         int id PK
         string category_name
         json major_names
     }
 
-    SA_UNIVERSITY {
+    UNIVERSITY {
         int id PK
         string name
         string code
