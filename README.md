@@ -542,17 +542,10 @@ https://www.notion.so/2cb0413479c4800aae5ae66665d29c51
 
 ## 13. 테스트 계획 및 결과
 
-### 테스트 계획
+<img width="534" height="794" alt="image" src="https://github.com/user-attachments/assets/fe50a3b7-bb35-4ba2-816c-057a6146fd7a" />
+<img width="548" height="636" alt="image" src="https://github.com/user-attachments/assets/4d83adc0-165e-4ad1-8caa-a80570748f6d" />
+<img width="532" height="188" alt="image" src="https://github.com/user-attachments/assets/523720cf-aa36-4495-8d43-b48afd856bff" />
 
-- **단위 테스트**: 각 LangChain Tool(검색, 조회)의 정상 동작 여부 검증
-- **통합 테스트**: 사용자 질문 입력부터 최종 답변 생성까지의 전체 파이프라인 테스트
-- **UI 테스트**: 반응형 레이아웃 및 크로스 브라우징 테스트 (Chrome, Edge)
-
-### 테스트 결과
-
-- **정확도**: 전공 추천 시나리오 50개 중 45개 이상 적절한 학과 추천 (정확도 90% 달성)
-- **응답성**: 평균 응답 시간 2.5초 기록
-- **안정성**: 예외 상황(데이터 없음 등)에 대한 Fallback 메시지 정상 출력 확인
 
 | [Notion](https://www.notion.so/2cc0413479c480fab4b0f122297a40ea)
 
