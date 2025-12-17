@@ -134,6 +134,97 @@ class MajorRecommendation(models.Model):
         return f"Guest ({self.session_id[:8]}) - 전공 추천 ({self.created_at.strftime('%Y-%m-%d')})"
 
 
+
+# ============================================
+# 데이터 DB 모델 (Managed = False)
+# ============================================
+
+
+class Major(models.Model):
+    """
+    전공 정보 모델 (SQLAlchemy 관리 테이블 - 읽기 전용으로 연동)
+    Table: majors
+    """
+
+    major_id = models.CharField(
+        max_length=255, unique=True, help_text="전공 고유 ID"
+    )
+    major_name = models.CharField(max_length=255, help_text="전공명")
+    
+    # 텍스트 필드
+    summary = models.TextField(null=True, blank=True, help_text="학과 개요")
+    interest = models.TextField(null=True, blank=True, help_text="흥미와 적성")
+    property = models.TextField(null=True, blank=True, help_text="학과 특성")
+    job = models.TextField(null=True, blank=True, help_text="관련 직업")
+
+    # JSON/LONGTEXT 데이터
+    relate_subject = models.TextField(null=True, blank=True, help_text="관련 교과목")
+    enter_field = models.TextField(null=True, blank=True, help_text="진출 분야")
+    department_aliases = models.TextField(null=True, blank=True, help_text="관련 학과")
+    career_act = models.TextField(null=True, blank=True, help_text="진로 탐색 활동")
+    qualifications = models.TextField(null=True, blank=True, help_text="관련 자격")
+    main_subject = models.TextField(null=True, blank=True, help_text="주요 교과목")
+    university = models.TextField(null=True, blank=True, help_text="개설 대학")
+    chart_data = models.TextField(null=True, blank=True, help_text="차트 데이터 (JSON)")
+    raw_data = models.TextField(null=True, blank=True, help_text="원본 데이터 (JSON)")
+
+    # 통계
+    salary = models.FloatField(null=True, blank=True, help_text="평균 연봉 (만원)")
+    employment = models.TextField(null=True, blank=True, help_text="취업률 등급")
+    employment_rate = models.FloatField(null=True, blank=True, help_text="취업률 (%)")
+    acceptance_rate = models.FloatField(null=True, blank=True, help_text="경쟁률")
+
+    class Meta:
+        managed = False  # Django가 테이블을 생성/삭제하지 않음
+        db_table = "majors"
+        verbose_name = "전공 (Major)"
+        verbose_name_plural = "전공 목록"
+
+    def __str__(self):
+        return f"{self.major_name} ({self.major_id})"
+
+
+class MajorCategory(models.Model):
+    """
+    전공 카테고리 모델 (SQLAlchemy 관리 테이블)
+    Table: major_categories
+    """
+
+    category_name = models.CharField(
+        max_length=255, unique=True, help_text="카테고리명 (계열)"
+    )
+    major_names = models.TextField(help_text="포함된 전공 목록 (JSON)")
+
+    class Meta:
+        managed = False
+        db_table = "major_categories"
+        verbose_name = "전공 계열 (Category)"
+        verbose_name_plural = "전공 계열 목록"
+
+    def __str__(self):
+        return self.category_name
+
+
+class University(models.Model):
+    """
+    대학 정보 모델 (SQLAlchemy 관리 테이블)
+    Table: universities
+    """
+
+    name = models.CharField(max_length=255, unique=True, help_text="대학명")
+    code = models.CharField(max_length=50, null=True, blank=True, help_text="대학 코드")
+    url = models.CharField(max_length=500, null=True, blank=True, help_text="홈페이지 URL")
+
+    class Meta:
+        managed = False
+        db_table = "universities"
+        verbose_name = "대학 (University)"
+        verbose_name_plural = "대학 목록"
+
+    def __str__(self):
+        return self.name
+
+
 # ============================================
 # User Profile
 # ============================================

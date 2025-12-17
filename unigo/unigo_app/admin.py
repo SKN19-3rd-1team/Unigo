@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Conversation, Message, MajorRecommendation
+from .models import (
+    Conversation,
+    Message,
+    MajorRecommendation,
+    Major,
+    MajorCategory,
+    University,
+)
 
 
 # ============================================
@@ -75,3 +82,40 @@ class MajorRecommendationAdmin(admin.ModelAdmin):
         return obj.onboarding_answers.get("preferred_majors", "N/A")
 
     get_preferred_majors.short_description = "Preferred Majors"
+
+
+# ============================================
+# 데이터 DB Admin (Read-Only)
+# ============================================
+
+
+@admin.register(Major)
+class MajorAdmin(admin.ModelAdmin):
+    list_display = (
+        "major_name",
+        "major_id",
+        "salary",
+        "employment_rate",
+        "acceptance_rate",
+    )
+    search_fields = ("major_name", "major_id", "summary")
+    list_filter = ("employment",)
+
+    # Managed=False이므로 데이터 보호를 위해 추가/삭제 제한 (선택 사항)
+    # 필요시 주석 해제하여 쓰기 권한 부여 가능
+    # def has_add_permission(self, request):
+    #     return False
+    # def has_delete_permission(self, request, obj=None):
+    #     return False
+
+
+@admin.register(MajorCategory)
+class MajorCategoryAdmin(admin.ModelAdmin):
+    list_display = ("category_name",)
+    search_fields = ("category_name",)
+
+
+@admin.register(University)
+class UniversityAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "url")
+    search_fields = ("name", "code")
