@@ -173,7 +173,7 @@ Unigo/
 ---
 
 ## 5. WBS
-![alt text](image.png)
+<img width="1726" height="854" alt="image" src="https://github.com/user-attachments/assets/a2aa6bb0-6be0-43e4-9c00-4f7ee46d44e9" />
 https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
 
 ---
