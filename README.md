@@ -116,7 +116,7 @@
 
 #### 데이터 소스 (Data Sources)
 - **major_detail.json(커리어넷)**: 학과 정보(요약, 졸업 후 진로, 관련 자격증, 취업률 등), 주요 교과목 정보, 학교명, 지역 등
-- **university_data_cleaned.json(대학어디가)**: 대학별 정보 및 주소
+- **university_data_cleaned.json(대학어디가)**: 대학별 입시 정보
 - **major_categories.json(커리어넷)**: 대분류 학과와 그에 해당하는 학과들 나열
 
 #### 전처리 파이프라인 (Processing Pipeline)
