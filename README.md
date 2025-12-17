@@ -172,7 +172,14 @@ Unigo/
 
 ---
 
-## 5. 주요 기능
+## 5. WBS
+![alt text](image.png)
+https://www.notion.so/1-Unigo-28b0413479c481999c87d8546598ca95
+
+---
+
+
+## 6. 주요 기능
 
 ### 1) 🤖 RAG 기반 AI 멘토
 
@@ -199,7 +206,7 @@ Unigo/
 
 ---
 
-## 6. 기술 스택
+## 7. 기술 스택
 
 | 분류          | 기술                     | 비고                                                |
 | ------------- | ------------------------ | --------------------------------------------------- |
@@ -212,11 +219,11 @@ Unigo/
 
 ---
 
-## 7. 시스템 아키텍처
+## 7. 시스템 아키텍처 & 기술적 전략 (System Architecture & Technical Strategy)
 
 ### 1) 시스템 개요 (System Overview)
 
-이 시스템은 Nginx 리버스 프록시 뒤에서 Django가 웹 애플리케이션과 AI 백엔드 로직을 모두 처리하는 모놀리식 아키텍처를 따릅니다.
+이 시스템은 Nginx 리버스 프록시 뒤에서 Django가 웹 애플리케이션과 AI 백엔드 로직을 모두 처리하는 **모듈러 모놀리스(Modular Monolith)** 아키텍처를 따릅니다.
 
 ```mermaid
 flowchart TD
@@ -236,10 +243,48 @@ flowchart TD
     end
 ```
 
-### 2) AI 도구 & 워크플로우 (AI Tools & Workflow)
+### 2) 아키텍처 분석: Hybrid Approach (Django + SQLAlchemy)
 
-#### LangGraph Workflow
-AI 멘토는 **LangGraph**를 사용하여 상태 기반의 워크플로우를 관리하며, 두 가지 독립적인 그래프로 운영됩니다. (`ReAct Agent`, `Major Recommendation Pipeline`)
+이 프로젝트는 일반적인 웹 애플리케이션 프레임워크인 **Django**와 파이썬 데이터 생태계의 표준 ORM인 **SQLAlchemy**를 동시에 사용하는 하이브리드 구조를 채택하고 있습니다.
+
+- **Django**: 웹 서비스의 '뼈대'를 담당
+    - **역할**: 사용자 인증(Auth), 관리자 페이지(Admin), 정적 파일 관리, 엔드포인트 라우팅(Views).
+    - **특징**: 생산성이 높고 보안 기능이 내장되어 있어 웹 서비스 구축에 효율적입니다.
+- **SQLAlchemy**: AI/데이터 서비스의 '심장'을 담당
+    - **역할**: RAG(검색 증강 생성)를 위한 벡터 메타데이터 관리, 대용량 데이터(전공, 대학 정보) 적재 및 조회, LangChain 등 AI 라이브러리와의 연동.
+    - **위치**: `backend/db`, `backend/rag`, `backend/main.py` 등 AI 로직이 집중된 모듈에서 주로 사용됨.
+
+### 3) 핵심 질문: 왜 굳이 SQLAlchemy를 사용해야 했는가? (Why SQLAlchemy?)
+
+단순히 Django ORM만으로도 데이터베이스 조작이 가능함에도 불구하고, SQLAlchemy를 별도로 도입한 데에는 다음과 같은 강력한 기술적 이유가 존재합니다.
+
+1.  **AI/Data 생태계와의 호환성 (Ecosystem Compatibility)**
+    -   LangChain 및 대부분의 최신 AI 라이브러리(LlamaIndex 등)는 RAG 파이프라인 구축 시 **SQLAlchemy를 사실상의 표준(De-facto Standard)**으로 지원합니다.
+    -   Django ORM은 프레임워크에 강하게 결합되어 있어 독립적인 AI 모듈에서 사용하기 무겁고 설정이 복잡한 반면, SQLAlchemy는 가볍고 독립적으로 동작하여 AI 모듈과의 결합이 자연스럽습니다.
+
+2.  **성능 및 미세 제어 (Performance & Fine-grained Control)**
+    -   **Bulk Operation**: `seed_all.py` 등 대용량 데이터 적재 시, SQLAlchemy Core를 사용하여 Raw SQL 수준의 성능을 내면서도 파이썬 객체로 관리할 수 있습니다.
+    -   **Connection Pooling**: AI 모델 서빙과 같이 리소스 관리가 중요한 환경에서 `pool_pre_ping=True`, `pool_recycle=3600` 등 상세한 커넥션 풀 설정을 통해 DB 연결 안정성을 확보했습니다.
+
+3.  **아키텍처의 유연성 (Architecture Decoupling)**
+    -   현재는 웹(Django)과 AI(Logic)가 하나의 서버에 있지만, 향후 AI 기능이 고도화되어 **Microservice(예: FastAPI)**로 분리될 가능성을 대비했습니다.
+    -   AI 로직을 SQLAlchemy로 작성해 두었기 때문에, 나중에 Django 의존성을 걷어내고 해당 모듈만 떼어내어 독립 서버로 이전하기(Migration)가 매우 수월합니다.
+
+4.  **복잡한 데이터 타입 처리**: `Major` 모델의 `LONGTEXT` 컬럼에 JSON 데이터를 저장하는 등 비정규화된 패턴이나 커스텀 타입을 매핑할 때 훨씬 유연한 기능을 제공합니다.
+
+### 4) 상세 분석: Django와 SQLAlchemy의 공존 (Co-existence Strategy)
+
+시스템은 **"Django가 문지기(Gatekeeper) 역할을 하고, SQLAlchemy가 두뇌(Brain) 역할을 하는 구조"**입니다.
+
+1.  **진입 (Entry)**: 사용자 프론트엔드가 Django 웹 서버(`unigo_app/views.py`)로 HTTP 요청을 보냅니다.
+2.  **보안 및 인증 (Security)**: Django가 세션 인증, 권한 검사 등을 수행합니다. (Django ORM 사용)
+3.  **위임 (Delegation)**: 유효한 요청이라면 Django View가 `backend.main.run_mentor()`를 호출하여 제어권을 AI 로직으로 넘깁니다.
+4.  **AI 추론 (Inference)**: `run_mentor`는 LangGraph를 실행하며, 이 과정에서 필요한 데이터 조회는 SQLAlchemy를 통해 `Major`/`University` 테이블 및 Vector Store에 접근합니다.
+5.  **응답 (Response)**: AI가 생성한 최종 답변 텍스트만 Django View로 반환되어 클라이언트에게 전달됩니다.
+
+### 5) AI 도구 & 워크플로우 (AI Tools & Workflow)
+
+AI 멘토는 **LangGraph**를 사용하여 상태 기반의 워크플로우를 관리하며, `backend/rag/tools.py`에 정의된 도구들을 사용하여 답변을 생성합니다.
 
 ```mermaid
 flowchart TD
@@ -253,36 +298,110 @@ flowchart TD
     style Tools fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
-#### AI Tools Definition
-`backend/rag/tools.py`에 정의된 다음 도구들을 사용하여 데이터와 상호 작용하고 답변을 제공합니다.
+### 6) 데이터베이스 클러스터 & 스키마 (Database Clusters & Schema)
 
-| 도구 이름 (Tool Name)            | 설명 (Description)                                                                    | 주요 데이터 소스 (Key Data Source)                  |
-| -------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `list_departments`               | 키워드나 카테고리를 기반으로 전공/학과 이름을 추천합니다.                             | **Pinecone** (벡터 검색) & **MySQL** (Major 테이블) |
-| `get_universities_by_department` | 특정 전공이 개설된 대학을 찾습니다. 의미 기반 검색과 SQL LIKE 검색을 함께 사용합니다. | **Pinecone** (의미 매칭) & **MySQL** (JSON 파싱)    |
-| `get_major_career_info`          | 전공에 대한 상세 진로 정보(연봉, 직업, 자격증 등)를 조회합니다.                       | **MySQL** (Major 테이블 - 커리어넷 데이터)          |
-| `get_university_admission_info`  | 대학별 입시 정보 URL과 코드를 제공합니다.                                             | **MySQL** (University 테이블 - 대입정보포털 데이터) |
-| `get_search_help`                | 검색 결과가 없을 때 검색 팁과 가이드를 제공합니다.                                    | 정적 가이드 문자열                                  |
+데이터베이스는 크게 **세 가지 논리적 영역(Cluster)**으로 나뉘어 관리되고 있습니다.
 
-### 3) 데이터베이스 스키마 (Database Schema)
+1.  **User & Chat Cluster (Django)**: 사용자, 대화 기록, 프로필 관리 (웹 서비스 영역)
+2.  **AI Data Cluster (SQLAlchemy)**: RAG/검색 엔진이 사용하는 전공 및 대학 원본 데이터 (AI 영역 - 핵심 데이터)
+3.  **App Data Cluster (Django)**: Django Admin용으로 정의되었으나 AI 로직과는 분리된 영역
 
-#### 관계형 데이터베이스 (MySQL)
-| 모델명 (Model Name)     | 테이블 용도 (Table Purpose)      | 주요 필드 (Key Fields)                                                               |
-| ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
-| **Major**               | 전공 상세 정보 (커리어넷 데이터) | `name`, `summary`, `salary` (연봉), `employment_rate` (취업률), `jobs`, `chart_data` |
-| **University**          | 대학 메타데이터                  | `name`, `campus_name`, `url` (입시 URL), `code`                                      |
-| **MajorUniversity**     | 전공과 대학 간의 매핑 정보       | `primary_key(major, university)`                                                     |
-| **Conversation**        | 채팅 세션 정보                   | `session_id` (비로그인 지원), `user_id` (회원 연동)                                  |
-| **Message**             | 채팅 메시지 내역                 | `role` (역할), `content` (내용), `metadata` (도구 호출 정보)                         |
-| **MajorRecommendation** | 온보딩 추천 결과                 | `onboarding_answers` (입력값), `recommended_majors` (추천 결과 JSON)                 |
+**주요 테이블 관계도**
+
+| 모델명 (Model) | 관리 주체 | 설명 (Description) | 주요 필드 |
+| :--- | :--- | :--- | :--- |
+| **Major** | SQLAlchemy | 전공 상세 정보 (커리어넷) | `name`, `summary`, `salary`, `employment_rate` |
+| **University** | SQLAlchemy | 대학 메타데이터 (대학어디가) | `name`, `campus_name`, `url`, `code` |
+| **MajorUniversity** | SQLAlchemy | 전공-대학 매핑 (Mapping) | `major_id`, `university_id` |
+| **Conversation** | Django | 채팅 세션 정보 | `session_id`, `user_id`, `created_at` |
+| **Message** | Django | 채팅 메시지 내역 | `role`, `content`, `metadata` |
+| **Suggestion** | Django | 온보딩 추천 결과 | `user_id`, `recommended_majors` (JSON) |
+
+> **주의사항**: 두 개의 ORM이 하나의 DB를 공유하므로, 마이그레이션 시 주의가 필요합니다. `User/Chat` 영역은 Django `migrate`로, `AI Data` 영역은 `init_db.py` 등 별도 스크립트로 관리하여 두 영역의 충돌을 방지합니다.
 
 #### 벡터 데이터베이스 (Pinecone)
-- **네임스페이스: `major_categories`**: 광범위한 매칭을 위한 표준 전공명 및 카테고리 임베딩 저장.
-- **네임스페이스: `university_majors`**: 세밀한 의미 기반 검색(예: "특정 대학의 특정 학과 찾기")을 위한 "대학명 + 학과명" 쌍의 임베딩 저장.
+- **`major_categories`**: 광범위한 매칭을 위한 표준 전공명 및 카테고리 임베딩.
+- **`university_majors`**: 세밀한 의미 기반 검색을 위한 "대학명 + 학과명" 쌍의 임베딩.
+
+#### ERD
+
+```mermaid
+erDiagram
+    %% ==========================================
+    %% 1. User & Chat Cluster (Django Native)
+    %% ==========================================
+    USER ||--|| USER_PROFILE : "has"
+    USER ||--o{ CONVERSATION : "owns"
+    USER ||--o{ MAJOR_RECOMMENDATION : "receives"
+    CONVERSATION ||--o{ MESSAGE : "contains"
+
+    USER {
+        int id PK
+        string username
+        string email
+        string password
+    }
+
+    USER_PROFILE {
+        int id PK
+        int user_id FK
+        string character "페르소나 (rabbit 등)"
+        string custom_image
+    }
+
+    CONVERSATION {
+        int id PK
+        int user_id FK "Nullable (비로그인 지원)"
+        string session_id "Guest 식별용"
+        string title
+    }
+
+    MESSAGE {
+        int id PK
+        int conversation_id FK
+        string role "user/assistant"
+        text content
+        json metadata
+    }
+
+    MAJOR_RECOMMENDATION {
+        int id PK
+        int user_id FK
+        json onboarding_answers
+        json recommended_majors
+    }
+
+    %% ==========================================
+    %% 2. AI Data Cluster (SQLAlchemy Managed)
+    %% ** 실질적인 AI 데이터가 저장되는 곳 **
+    %% ==========================================
+    MAJOR_CATEGORY |{--|| SA_MAJOR : "groups (JSON list)"
+    
+    SA_MAJOR {
+        int id PK
+        string major_name "전공명"
+        json relate_subject
+        json university
+        json chart_data
+        float employment_rate
+    }
+    
+    SA_MAJOR_CATEGORY {
+        int id PK
+        string category_name
+        json major_names
+    }
+
+    SA_UNIVERSITY {
+        int id PK
+        string name
+        string code
+    }
+```
 
 ---
 
-## 8. 데이터 및 전처리 과정
+## 9. 데이터 및 전처리 과정
 
 ### 데이터 소스 (Data Sources)
 - **major_detail.json(커리어넷)**: 학과 정보(요약, 졸업 후 진로, 관련 자격증, 취업률 등), 주요 교과목 정보, 학교명, 지역 등
@@ -300,7 +419,7 @@ flowchart TD
 
 ---
 
-## 9. 배포 과정 (Deployment)
+## 10. 배포 과정 (Deployment)
 
 ### 배포 환경
 - **Cloud Platform**: AWS EC2 / Azure VM (예시)
@@ -315,7 +434,7 @@ flowchart TD
 
 ---
 
-## 10. 진행 과정 중 프로그램 개선 노력
+## 11. 진행 과정 중 프로그램 개선 노력
 
 ### 1) AI 모델 최적화 (Hallucination Control)
 - **Problem**: LLM이 없는 대학 정보(예: "한양대학교 천문학과")를 그럴듯하게 지어내는 환각 현상 발생.
@@ -335,7 +454,7 @@ flowchart TD
 
 ---
 
-## 11. 트러블 슈팅 (Troubleshooting)
+## 12. 트러블 슈팅 (Troubleshooting)
 
 **Case 1: 이미지 업로드 갱신 불가 현상 (Image Overwrite)**
 - **Problem**: Django의 기본 파일 저장 방식은 파일명 중복 시 자동으로 이름을 변경(`image_1.png`)하기 때문에, 사용자가 같은 파일명으로 이미지를 수정해도 반영되지 않는 문제가 있었습니다. 또한 브라우저의 강력한 캐싱으로 인해 변경 후에도 이전 이미지가 계속 표시되었습니다.
@@ -351,7 +470,7 @@ flowchart TD
 
 ---
 
-## 12. 테스트 계획 및 결과
+## 13. 테스트 계획 및 결과
 
 ### 테스트 계획
 - **단위 테스트**: 각 LangChain Tool(검색, 조회)의 정상 동작 여부 검증
@@ -365,7 +484,7 @@ flowchart TD
 
 ---
 
-## 13. 수행결과 (시연)
+## 14. 수행결과 (시연)
 
 ### 1) 로그인 및 회원가입
 - 이메일/닉네임 중복 체크 및 보안 로그인
@@ -387,7 +506,7 @@ flowchart TD
 
 ---
 
-## 14. 한 줄 회고
+## 15. 한 줄 회고
 
 - **강지완**: "RAG 파이프라인을 구축하며 데이터 전처리의 중요성을 뼈저리게 느꼈습니다."
 - **김진**: "LangGraph의 상태 관리를 통해 에이전트의 흐름을 제어하는 것이 흥미로웠습니다."
