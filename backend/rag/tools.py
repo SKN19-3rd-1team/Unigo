@@ -195,8 +195,19 @@ def _load_major_categories() -> Dict[str, List[str]]:
         session.close()
 
 
-# 전공 카테고리 전역 변수 (모듈 로드 시 1회만 실행)
-MAIN_CATEGORIES = _load_major_categories()
+# 전공 카테고 캐싱 변수 (Late Binding)
+_MAIN_CATEGORIES: Optional[Dict[str, List[str]]] = None
+
+
+def get_main_categories() -> Dict[str, List[str]]:
+    """
+    전공 카테고리 정보를 로드하고 캐싱합니다. (Lazy Loading)
+    최초 호출 시 DB에서 로드하며, 실패 시 빈 딕셔너리를 반환합니다.
+    """
+    global _MAIN_CATEGORIES
+    if _MAIN_CATEGORIES is None:
+        _MAIN_CATEGORIES = _load_major_categories()
+    return _MAIN_CATEGORIES
 
 
 def _expand_category_query(query: str) -> Tuple[List[str], str]:
@@ -220,18 +231,19 @@ def _expand_category_query(query: str) -> Tuple[List[str], str]:
     if not raw:
         return [], ""
 
+    categories = get_main_categories()
     tokens: List[str] = []
 
     # 1) 대분류(key) 입력인 경우 → 해당 key의 모든 세부 value를 한꺼번에 풀어서 사용
-    if raw in MAIN_CATEGORIES:
-        details = MAIN_CATEGORIES[raw]
+    if raw in categories:
+        details = categories[raw]
         for item in details:
             # "컴퓨터 / 소프트웨어 / 인공지능" 형태를 개별 토큰으로 분리
             parts = [p.strip() for p in re.split(r"[\/,()]", item) if p.strip()]
             tokens.extend(parts)
 
     # 2) 세부 분류(value) 그대로 들어온 경우
-    elif any(raw in v for values in MAIN_CATEGORIES.values() for v in values):
+    elif any(raw in v for values in categories.values() for v in values):
         parts = [p.strip() for p in re.split(r"[\/,()]", raw) if p.strip()]
         tokens.extend(parts)
 
